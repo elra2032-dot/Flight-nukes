@@ -1895,6 +1895,7 @@
         for (let i = projectiles.length - 1; i >= 0; i--) {
           const projectile = projectiles[i];
           projectile.age += dt;
+          const previousPosition = projectile.mesh.position.clone();
           if (projectile.type === "playerMissile" && duelMode && projectile.target === remotePlane && remotePose?.flying) {
             const steering = projectile.target.position.clone().sub(projectile.mesh.position).normalize();
             projectile.velocity.lerp(steering.multiplyScalar(29), Math.min(1, dt * 2.8));
@@ -1916,9 +1917,15 @@
             removeProjectile(i);
             continue;
           }
+          const shotPath = projectile.mesh.position.clone().sub(previousPosition);
+          const shotLengthSquared = shotPath.lengthSq();
+          const targetPosition = remotePlane?.position || new THREE.Vector3();
+          const targetAlongShot = shotLengthSquared > 0
+            ? clamp(targetPosition.clone().sub(previousPosition).dot(shotPath) / shotLengthSquared, 0, 1)
+            : 0;
+          const closestShotPoint = previousPosition.addScaledVector(shotPath, targetAlongShot);
           if (duelMode && (projectile.type === "playerBullet" || projectile.type === "playerMissile") &&
-              remotePose?.flying && Math.abs(projectile.mesh.position.z - remotePlane.position.z) < 1.1 &&
-              Math.hypot(projectile.mesh.position.x - remotePose.x, projectile.mesh.position.y - remotePose.y) < 1.1) {
+              remotePose?.flying && closestShotPoint.distanceTo(targetPosition) < 1.1) {
             if (connection?.open) connection.send({ type: "duel-hit", damage: projectile.damage });
             makeEnemyExplosion(remotePlane.position.clone(), 0x4aaec0);
             removeProjectile(i);
