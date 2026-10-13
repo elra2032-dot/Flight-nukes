@@ -528,7 +528,7 @@
     planeCardsEl.innerHTML = aircraft.map(model => {
       const locked = nextFlight < model.unlock;
       const isSelected = activeAircraftId === model.id;
-      return `<button class="plane-card ${isSelected ? "selected" : ""}" data-plane="${model.id}" ${locked ? "disabled" : ""} aria-pressed="${isSelected}">
+      return `<button class="plane-card ${isSelected ? "selected" : ""}" data-plane="${model.id}" style="--plane-accent:#${model.trim.toString(16).padStart(6, "0")}" ${locked ? "disabled" : ""} aria-pressed="${isSelected}">
         <span class="plane-emoji">${locked ? "🔒" : model.emoji}</span>
         <span><strong>${model.name}${locked ? ` · Flight ${model.unlock}` : ""}</strong><small>${locked ? "Keep flying to unlock" : model.ability}</small></span>
       </button>`;
