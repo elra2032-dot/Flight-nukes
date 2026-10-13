@@ -127,7 +127,8 @@
     .online-lobby { margin-top: 17px; padding-top: 15px; border-top: 1px solid #e6ece3; }
     .online-title { margin-bottom: 9px; color: #729088; font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
     .online-description { margin: -4px 0 9px; color: var(--muted); font-size: 10px; line-height: 1.4; }
-    .online-actions { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
+    .online-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .online-actions .room-input { grid-column: 1 / -1; }
     .online-button, .room-input, .room-code {
       min-height: 40px; padding: 0 11px; border: 1px solid #dfe8df; border-radius: 10px;
       background: #f8faf4; font-size: 11px;
@@ -213,6 +214,7 @@
     }
     .weapon-button.fire { color: #fff; border-color: #d86d4c; background: #ed8056; }
     .weapon-button.nuke { color: #fff; border-color: #b34d45; background: #cc6653; }
+    .weapon-button.turn { color: #fff; border-color: #447f83; background: #548f91; }
     .weapon-button small { display: block; margin-top: 3px; font: 8px "DM Mono", monospace; letter-spacing: .08em; }
     .weapon-button:active { transform: translateY(2px); }
     .hidden { display: none !important; }
@@ -266,6 +268,7 @@
         <div class="hud-chip"><span class="hud-icon">🪙</span><div><div class="hud-label">Credits</div><div class="hud-value" id="credits">000</div></div></div>
         <div class="hud-chip"><span class="hud-icon">🚀</span><div><div class="hud-label">Missiles</div><div class="hud-value" id="missiles">03</div></div></div>
         <div class="hud-chip"><span class="hud-icon">🛡️</span><div><div class="hud-label">Hull</div><div class="hud-value" id="health">3</div></div></div>
+        <div class="hud-chip hidden" id="duel-hud"><span class="hud-icon">⚔️</span><div><div class="hud-label">Rival hull</div><div class="hud-value" id="opponent-health">3</div></div></div>
         <div class="hud-chip round-hud"><span class="hud-icon">☀</span><div><div class="hud-label">Flight</div><div class="hud-value"><span id="round-number">1</span><div class="round-pips" id="round-pips"><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div></div></div>
         <button class="online-indicator hidden" id="online-indicator" aria-label="Disconnect from online room">● ONLINE · LEAVE</button>
         <button class="view-button hidden" id="view-toggle" aria-label="Switch camera view">CHASE VIEW · V</button>
@@ -275,12 +278,13 @@
     <div class="location-banner"><span aria-hidden="true">📍</span><span id="location-name">Cloud Meadow</span></div>
     <div class="game-hint hidden" id="hint">
       <span class="hint-keys"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></span>
-      <span>steer</span><span style="opacity:.4">·</span><span>F fire</span><span style="opacity:.4">·</span><span>Q missile</span><span style="opacity:.4">·</span><span>N nuke</span><span style="opacity:.4">·</span><span>V view</span>
+      <span>steer</span><span style="opacity:.4">·</span><span>F fire</span><span style="opacity:.4">·</span><span>Q missile</span><span style="opacity:.4">·</span><span>N nuke</span><span style="opacity:.4">·</span><span>R turn around</span><span style="opacity:.4">·</span><span>V view</span>
     </div>
     <div class="weapon-controls hidden" id="weapon-controls">
       <button class="weapon-button fire" id="fire-button" aria-label="Fire cannons with F">✦<small>F · FIRE</small></button>
       <button class="weapon-button" id="missile-button" aria-label="Launch homing missile with Q">🚀 <span id="missile-count">3</span><small>Q · MISSILE</small></button>
       <button class="weapon-button nuke" id="nuke-button" aria-label="Drop a nuke with N">☄️ <span id="nuke-count">1</span><small>N · NUKE</small></button>
+      <button class="weapon-button turn hidden" id="turn-button" aria-label="Turn around with R">↻<small id="turn-label">R · TURN</small></button>
     </div>
     <section class="screen" id="welcome">
       <div class="panel">
@@ -297,10 +301,12 @@
         <button class="primary" id="start">Let’s fly <span>↗</span></button>
         <div class="online-lobby">
           <div class="online-title">Fly with a friend</div>
-          <div class="online-description">Create a room code and fly side-by-side in real time.</div>
+          <div class="online-description">Fly side-by-side, or challenge a friend to a 1v1 dogfight.</div>
           <div class="online-actions">
-            <button class="online-button" id="host-room">Create room</button>
-            <button class="online-button" id="join-room">Join room</button>
+            <button class="online-button" id="host-room">Create flight room</button>
+            <button class="online-button" id="join-room">Join flight room</button>
+            <button class="online-button" id="host-duel">Host 1v1 duel</button>
+            <button class="online-button" id="join-duel">Join 1v1 duel</button>
             <input class="room-input" id="room-code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="Enter 6-letter room code" aria-label="Room code">
           </div>
           <div class="online-status" id="online-status" role="status" aria-live="polite"></div>
@@ -352,6 +358,8 @@
   const onlineStatusEl = document.querySelector("#online-status");
   const roomCodeEl = document.querySelector("#room-code");
   const onlineIndicator = document.querySelector("#online-indicator");
+  const duelHud = document.querySelector("#duel-hud");
+  const opponentHealthEl = document.querySelector("#opponent-health");
   const hint = document.querySelector("#hint");
   const cardsEl = document.querySelector("#cards");
   const planeCardsEl = document.querySelector("#plane-cards");
@@ -359,6 +367,8 @@
   const fireButton = document.querySelector("#fire-button");
   const missileButton = document.querySelector("#missile-button");
   const nukeButton = document.querySelector("#nuke-button");
+  const turnButton = document.querySelector("#turn-button");
+  const turnLabel = document.querySelector("#turn-label");
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const rand = (min, max) => min + Math.random() * (max - min);
   const upgrades = [
@@ -407,6 +417,7 @@
   let keys = new Set();
   let pointerDown = false;
   let health = 3;
+  let facing = -1;
   let cameraMode = "chase";
   let activeAircraftId = "trainer";
   let nextObstacle = 1.8;
@@ -421,6 +432,9 @@
   let peer = null;
   let connection = null;
   let roomCode = "";
+  let duelMode = false;
+  let duelResult = null;
+  let duelFireCooldown = 0;
   let remotePlane = null;
   let remotePose = null;
   let receivedRemotePose = false;
@@ -1028,8 +1042,39 @@
   }
 
   function handleRemoteData(data) {
-    if (!data || typeof data !== "object" || data.type !== "flight") return;
-    if (![data.x, data.y, data.roll, data.pitch].every(Number.isFinite)) return;
+    if (!data || typeof data !== "object") return;
+    if (data.type === "hello") {
+      duelMode = data.mode === "duel";
+      duelHud.classList.toggle("hidden", !duelMode);
+      setOnlineStatus(
+        duelMode ? `1v1 duel connected in room ${roomCode}. Shoot down your rival!` : `Connected to room ${roomCode}. Your wingmate is flying with you.`,
+        "connected"
+      );
+      return;
+    }
+    if (data.type === "duel-fire") {
+      if (!duelMode || !remotePose || !["cannon", "missile"].includes(data.weapon)) return;
+      const weapon = data.weapon === "missile" ? "duelMissile" : "duelBullet";
+      const sides = data.weapon === "missile" ? [0] : [-1, 1];
+      sides.forEach(side => addProjectile(
+        weapon,
+        new THREE.Vector3(remotePose.x + side * .24, remotePose.y + .02, remotePlane.position.z + remotePose.facing * .6),
+        new THREE.Vector3(0, 0, remotePose.facing),
+        data.weapon === "missile" ? 30 : 58
+      ));
+      return;
+    }
+    if (data.type === "duel-hit") {
+      if (!duelMode || !Number.isFinite(data.damage)) return;
+      makeEnemyExplosion(new THREE.Vector3(player.x, player.y, 0), 0x4aaec0);
+      damagePlayer(Math.round(clamp(data.damage, 1, 2)));
+      return;
+    }
+    if (data.type === "duel-result") {
+      if (duelMode && data.loser === true) finishDuel(true, false);
+      return;
+    }
+    if (data.type !== "flight" || ![data.x, data.y, data.roll, data.pitch].every(Number.isFinite)) return;
     if (!receivedRemotePose) {
       receivedRemotePose = true;
       onlineIndicator.textContent = "● WINGMATE LIVE · LEAVE";
@@ -1040,8 +1085,11 @@
       y: clamp(data.y, -3.2, 5.8),
       roll: clamp(data.roll, -1, 1),
       pitch: clamp(data.pitch, -1, 1),
+      facing: data.facing === 1 ? 1 : -1,
       flying: data.flying === true,
+      health: Number.isFinite(data.health) ? clamp(data.health, 0, 20) : 3,
     };
+    opponentHealthEl.textContent = remotePose.health;
     makeRemotePlane();
     if (remotePose.flying && state === "welcome") beginRound();
   }
@@ -1049,17 +1097,21 @@
   function handleConnectionClose() {
     connection = null;
     removeRemotePlane();
+    duelMode = false;
+    duelResult = null;
+    duelHud.classList.add("hidden");
     if (!intentionalDisconnect) setOnlineStatus("Your wingmate disconnected. You can keep flying solo.", "error");
   }
 
   function watchConnection(nextConnection) {
     connection = nextConnection;
     connection.on("open", () => {
+      connection.send({ type: "hello", mode: duelMode ? "duel" : "wingmate" });
       makeRemotePlane();
       onlineIndicator.classList.remove("hidden");
       onlineIndicator.textContent = "● ONLINE · LEAVE";
       onlineIndicator.setAttribute("aria-label", "Connected to online room; leave");
-      setOnlineStatus(`Connected to room ${roomCode}. Your wingmate is flying with you.`, "connected");
+      setOnlineStatus(duelMode ? `1v1 duel connected in room ${roomCode}. Shoot down your rival!` : `Connected to room ${roomCode}. Your wingmate is flying with you.`, "connected");
       if (state === "welcome") beginRound();
     });
     connection.on("data", handleRemoteData);
@@ -1070,12 +1122,15 @@
     });
   }
 
-  function hostOnlineRoom() {
+  function hostOnlineRoom(isDuel = false) {
     if (typeof Peer !== "function") {
       setOnlineStatus("Online rooms could not load. Check your internet connection and reload.", "error");
       return;
     }
     leaveOnlineRoom(false);
+    duelMode = isDuel;
+    duelResult = null;
+    duelHud.classList.toggle("hidden", !duelMode);
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     const randomValues = new Uint8Array(6);
     crypto.getRandomValues(randomValues);
@@ -1086,7 +1141,7 @@
     peer = new Peer(roomId);
     peer.on("open", () => {
       roomCodeEl.value = roomCode;
-      setOnlineStatus("Waiting for your wingmate. Share this room code:", "connected");
+      setOnlineStatus(isDuel ? "Waiting for your rival. Share this duel room code:" : "Waiting for your wingmate. Share this room code:", "connected");
     });
     peer.on("connection", incoming => {
       if (connection) {
@@ -1104,7 +1159,7 @@
     });
   }
 
-  function joinOnlineRoom() {
+  function joinOnlineRoom(isDuel = false) {
     if (typeof Peer !== "function") {
       setOnlineStatus("Online rooms could not load. Check your internet connection and reload.", "error");
       return;
@@ -1116,6 +1171,9 @@
       return;
     }
     leaveOnlineRoom(false);
+    duelMode = isDuel;
+    duelResult = null;
+    duelHud.classList.toggle("hidden", !duelMode);
     roomCode = code;
     intentionalDisconnect = false;
     setOnlineStatus("Finding your wingmate…");
@@ -1148,6 +1206,8 @@
       peer = null;
     }
     roomCode = "";
+    duelMode = false;
+    duelHud.classList.add("hidden");
     removeRemotePlane();
     if (showStatus) setOnlineStatus("You left the online room.");
   }
@@ -1381,7 +1441,7 @@
     scene.add(mesh);
     projectiles.push({
       mesh, type, velocity: travel.multiplyScalar(velocity), target, age: 0,
-      damage: type === "playerMissile" ? 2 : 1,
+      damage: type === "playerMissile" || type === "duelMissile" ? 2 : 1,
     });
   }
 
@@ -1390,11 +1450,12 @@
     for (const side of [-1, 1]) {
       addProjectile(
         "playerBullet",
-        new THREE.Vector3(player.x + side * .24, player.y + .02, -1.4),
-        new THREE.Vector3(0, 0, -1),
+        new THREE.Vector3(player.x + side * .24, player.y + .02, facing * 1.4),
+        new THREE.Vector3(0, 0, facing),
         58
       );
     }
+    if (duelMode && connection?.open) connection.send({ type: "duel-fire", weapon: "cannon" });
     fireCooldown = .24 / ((1 + stats.cannon * .2) * selectedAircraft().fire);
   }
 
@@ -1402,6 +1463,22 @@
     if (state !== "playing" || missileAmmo <= 0) return;
     missileAmmo--;
     updateHud();
+    if (duelMode) {
+      const target = remotePlane && remotePose?.flying ? remotePlane : null;
+      addProjectile(
+        "playerMissile",
+        new THREE.Vector3(player.x, player.y, facing * 1.5),
+        new THREE.Vector3(
+          target ? target.position.x - player.x : 0,
+          target ? target.position.y - player.y : 0,
+          target ? target.position.z - facing * 1.5 : facing
+        ),
+        29,
+        target
+      );
+      if (connection?.open) connection.send({ type: "duel-fire", weapon: "missile" });
+      return;
+    }
     const target = enemies
       .filter(enemy => enemy.position.z < -3 && enemy.position.z > -100)
       .sort((a, b) => a.position.distanceTo(plane.position) - b.position.distanceTo(plane.position))[0] || null;
@@ -1544,12 +1621,30 @@
     blastEffects.length = 0;
   }
 
-  function damagePlayer() {
+  function damagePlayer(amount = 1) {
     if (player.invulnerable > 0 || state !== "playing") return;
-    health--;
+    health = Math.max(0, health - amount);
     player.invulnerable = 1.1;
     updateHud();
-    if (health <= 0) endRound(true);
+    if (health <= 0) {
+      if (duelMode) finishDuel(false, true);
+      else endRound(true);
+    }
+  }
+
+  function finishDuel(won, notifyRival) {
+    if (!duelMode || duelResult !== null) return;
+    duelResult = won;
+    if (notifyRival && connection?.open) connection.send({ type: "duel-result", loser: true });
+    fireHeld = false;
+    document.querySelector("#upgrade-eyebrow").textContent = "1v1 DOGFIGHT";
+    document.querySelector("#upgrade-title").textContent = won ? "Victory!" : "Shot down!";
+    document.querySelector("#upgrade-sub").textContent = won
+      ? "Your rival is out of the sky. Well flown!"
+      : "Your rival won this duel. Try another flight and challenge them again.";
+    document.querySelector("#final-summary").innerHTML =
+      `<span>YOUR HULL <b>${health}</b></span><span>RIVAL HULL <b>${remotePose?.health ?? 0}</b></span>`;
+    show("gameover-screen");
   }
 
   function removeProjectile(index) {
@@ -1583,6 +1678,10 @@
     missileButtonCountEl.textContent = missileAmmo;
     nukeButtonCountEl.textContent = nukeAmmo;
     healthEl.textContent = health;
+    duelHud.classList.toggle("hidden", !duelMode);
+    turnButton.classList.toggle("hidden", !duelMode);
+    turnLabel.textContent = facing === -1 ? "R · TURN" : "R · RETURN";
+    turnButton.setAttribute("aria-label", facing === -1 ? "Turn around with R" : "Face forward with R");
     roundEl.textContent = round;
     document.querySelector("#location-name").textContent = locationForFlight(round).name;
     viewToggle.textContent = `${cameraMode === "chase" ? "CHASE" : "COCKPIT"} VIEW · V`;
@@ -1610,6 +1709,7 @@
     fireCooldown = 0;
     missileAmmo = 3 + stats.missile + model.missiles;
     nukeAmmo = 1 + stats.nuke + (model.nukes || 0);
+    facing = -1;
     movingObjects.forEach(object => scene.remove(object));
     movingObjects.length = 0;
     clearCombatObjects();
@@ -1626,6 +1726,10 @@
 
   function endRound(crashed = false) {
     if (state !== "playing") return;
+    if (duelMode) {
+      finishDuel(false, true);
+      return;
+    }
     const bonus = 14 + Math.floor(elapsed * .35) + stats.pocket * 3;
     const earned = roundCoins + bonus;
     totalCoins += bonus;
@@ -1698,7 +1802,7 @@
       nextCoin -= dt;
       nextEnemy -= dt;
       fireCooldown -= dt;
-      if (nextObstacle <= 0) {
+      if (!duelMode && nextObstacle <= 0) {
         addObstacle();
         nextObstacle = rand(1.65, 2.25) / (1 + Math.min(round - 1, 12) * .035);
       }
@@ -1706,7 +1810,7 @@
         addCoin();
         nextCoin = rand(.75, 1.05);
       }
-      if (nextEnemy <= 0) {
+      if (!duelMode && nextEnemy <= 0) {
         addEnemy();
         nextEnemy = rand(3.5, 4.5) / (1 + Math.min(round - 1, 10) * .025);
       }
@@ -1723,7 +1827,7 @@
 
       for (let i = movingObjects.length - 1; i >= 0; i--) {
         const object = movingObjects[i];
-        object.position.z += speed * dt * object.userData.speed;
+        object.position.z -= facing * speed * dt * object.userData.speed;
         if (object.userData.kind === "obstacle") {
           object.position.y += Math.sin(timestamp * .0018 + object.userData.wobble) * dt * .22;
           object.rotation.z = Math.sin(timestamp * .001 + object.userData.wobble) * .045;
@@ -1757,7 +1861,7 @@
             dodged++;
           }
         }
-        if (object.position.z > 15) {
+        if (facing === -1 ? object.position.z > 15 : object.position.z < -15) {
           scene.remove(object);
           movingObjects.splice(i, 1);
         }
@@ -1765,11 +1869,11 @@
       if (state === "playing") {
         for (let i = enemies.length - 1; i >= 0; i--) {
           const enemy = enemies[i];
-          enemy.position.z += speed * 1.35 * dt;
+          enemy.position.z -= facing * speed * 1.35 * dt;
           enemy.position.x += Math.sin(timestamp * .0014 + enemy.userData.wobble) * dt * .85;
           enemy.position.y += Math.sin(timestamp * .0018 + enemy.userData.wobble) * dt * .34;
           enemy.userData.fireTimer -= dt;
-          if (enemy.userData.fireTimer <= 0 && enemy.position.z > -78 && enemy.position.z < -9) {
+          if (!duelMode && enemy.userData.fireTimer <= 0 && enemy.position.z > -78 && enemy.position.z < -9) {
             enemyFire(enemy);
             enemy.userData.fireTimer = rand(1.25, 2.15);
           }
@@ -1781,7 +1885,7 @@
             if (state !== "playing") break;
             continue;
           }
-          if (enemy.position.z > 13) {
+          if (facing === -1 ? enemy.position.z > 13 : enemy.position.z < -13) {
             scene.remove(enemy);
             enemies.splice(i, 1);
           }
@@ -1791,7 +1895,10 @@
         for (let i = projectiles.length - 1; i >= 0; i--) {
           const projectile = projectiles[i];
           projectile.age += dt;
-          if (projectile.type === "playerMissile" && projectile.target && enemies.includes(projectile.target)) {
+          if (projectile.type === "playerMissile" && duelMode && projectile.target === remotePlane && remotePose?.flying) {
+            const steering = projectile.target.position.clone().sub(projectile.mesh.position).normalize();
+            projectile.velocity.lerp(steering.multiplyScalar(29), Math.min(1, dt * 2.8));
+          } else if (projectile.type === "playerMissile" && projectile.target && enemies.includes(projectile.target)) {
             const steering = projectile.target.position.clone().sub(projectile.mesh.position).normalize();
             projectile.velocity.lerp(steering.multiplyScalar(29), Math.min(1, dt * 2.8));
           } else if (projectile.type === "enemyMissile") {
@@ -1806,6 +1913,19 @@
 
           if (projectile.type === "playerNuke" && projectile.mesh.position.y <= -8.55) {
             triggerNuke(projectile.mesh.position.x, projectile.mesh.position.z);
+            removeProjectile(i);
+            continue;
+          }
+          if (duelMode && (projectile.type === "playerBullet" || projectile.type === "playerMissile") &&
+              remotePose?.flying && Math.abs(projectile.mesh.position.z - remotePlane.position.z) < 1.1 &&
+              Math.hypot(projectile.mesh.position.x - remotePose.x, projectile.mesh.position.y - remotePose.y) < 1.1) {
+            if (connection?.open) connection.send({ type: "duel-hit", damage: projectile.damage });
+            makeEnemyExplosion(remotePlane.position.clone(), 0x4aaec0);
+            removeProjectile(i);
+            continue;
+          }
+          if (duelMode && (projectile.type === "duelBullet" || projectile.type === "duelMissile") &&
+              Math.abs(projectile.mesh.position.z) < 1.1) {
             removeProjectile(i);
             continue;
           }
@@ -1841,13 +1961,14 @@
           }
         }
       }
-      if (elapsed >= 24 + Math.min(round * 2, 8)) endRound(false);
+      if (!duelMode && elapsed >= 24 + Math.min(round * 2, 8)) endRound(false);
     }
 
     groundObjects.forEach(object => {
-      object.position.z += (flying ? speed * object.userData.speed : 2.6 * object.userData.speed) * dt;
-      if (object.position.z > 42) {
-        object.position.z = rand(-180, -145);
+      const travelDirection = flying ? -facing : 1;
+      object.position.z += travelDirection * (flying ? speed * object.userData.speed : 2.6 * object.userData.speed) * dt;
+      if (travelDirection > 0 ? object.position.z > 42 : object.position.z < -180) {
+        object.position.z = travelDirection > 0 ? rand(-180, -145) : rand(145, 180);
         object.position.x = rand(-30, 30);
         if (object.userData.kind === "tank") {
           object.userData.fireTimer = rand(1.5, 2.8);
@@ -1856,7 +1977,7 @@
       }
       if (object.userData.kind === "tank") {
         object.userData.turret.lookAt(new THREE.Vector3(player.x, player.y, 0));
-        if (flying && object.position.z < -12 && object.position.z > -84) {
+        if (flying && !duelMode && object.position.z < -12 && object.position.z > -84) {
           object.userData.fireTimer -= dt;
           if (object.userData.fireTimer <= 0) {
             fireTank(object);
@@ -1868,19 +1989,22 @@
     updateBlastEffects(dt);
 
     scenery.forEach(cloud => {
-      cloud.position.z += (flying ? speed * cloud.userData.speed : 1.8) * dt;
-      if (cloud.position.z > 48) {
-        cloud.position.z = rand(-170, -130);
+      const travelDirection = flying ? -facing : 1;
+      cloud.position.z += travelDirection * (flying ? speed * cloud.userData.speed : 1.8) * dt;
+      if (travelDirection > 0 ? cloud.position.z > 48 : cloud.position.z < -170) {
+        cloud.position.z = travelDirection > 0 ? rand(-170, -130) : rand(130, 170);
         cloud.position.x = rand(-32, 32);
         cloud.position.y = rand(-4, 16);
       }
     });
     plane.position.set(player.x, player.y + (flying ? 0 : Math.sin(timestamp * .0018) * .12), 0);
+    plane.rotation.y = facing === -1 ? 0 : Math.PI;
     plane.rotation.z += ((flying ? -(player.targetX - player.x) * .09 : 0) - plane.rotation.z) * Math.min(1, dt * 5);
     plane.rotation.x += ((flying ? (player.targetY - player.y) * .06 : Math.sin(timestamp * .0015) * .025) - plane.rotation.x) * Math.min(1, dt * 4);
     if (remotePlane && remotePose) {
       remotePlane.visible = remotePose.flying;
-      remotePlane.position.lerp(new THREE.Vector3(remotePose.x, remotePose.y, -7), Math.min(1, dt * 9));
+      remotePlane.position.lerp(new THREE.Vector3(remotePose.x, remotePose.y, facing * 7), Math.min(1, dt * 9));
+      remotePlane.rotation.y = remotePose.facing === -1 ? 0 : Math.PI;
       remotePlane.rotation.z += (remotePose.roll - remotePlane.rotation.z) * Math.min(1, dt * 8);
       remotePlane.rotation.x += (remotePose.pitch - remotePlane.rotation.x) * Math.min(1, dt * 8);
     }
@@ -1894,7 +2018,9 @@
           y: player.y,
           roll: plane.rotation.z,
           pitch: plane.rotation.x,
+          facing,
           flying,
+          health,
         });
       }
     }
@@ -1909,18 +2035,20 @@
       camera.up.copy(up);
       camera.lookAt(viewTarget);
     } else {
-      const chasePosition = new THREE.Vector3(player.x * .55, player.y + 4.2, 11);
+      const chasePosition = new THREE.Vector3(player.x * .55, player.y + 4.2, -facing * 11);
       camera.position.lerp(chasePosition, Math.min(1, dt * 1.8));
       camera.up.set(0, 1, 0);
-      camera.lookAt(player.x * .3, player.y * .35, -21);
+      camera.lookAt(player.x * .3, player.y * .35, facing * 21);
     }
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }
 
   document.querySelector("#start").addEventListener("click", beginRound);
-  document.querySelector("#host-room").addEventListener("click", hostOnlineRoom);
-  document.querySelector("#join-room").addEventListener("click", joinOnlineRoom);
+  document.querySelector("#host-room").addEventListener("click", () => hostOnlineRoom(false));
+  document.querySelector("#join-room").addEventListener("click", () => joinOnlineRoom(false));
+  document.querySelector("#host-duel").addEventListener("click", () => hostOnlineRoom(true));
+  document.querySelector("#join-duel").addEventListener("click", () => joinOnlineRoom(true));
   onlineIndicator.addEventListener("click", () => leaveOnlineRoom());
   roomCodeEl.addEventListener("input", () => {
     roomCodeEl.value = roomCodeEl.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
@@ -1939,8 +2067,10 @@
   });
   document.querySelector("#reroll").addEventListener("click", createChoices);
   document.querySelector("#restart").addEventListener("click", () => {
+    if (duelMode) leaveOnlineRoom(false);
     round = 1;
     totalCoins = 0;
+    duelResult = null;
     stats = { engine: 0, wings: 0, magnet: 0, pocket: 0, hull: 0, propeller: 0, cannon: 0, missile: 0, nuke: 0 };
     activeAircraftId = "trainer";
     cameraMode = "chase";
@@ -1954,6 +2084,11 @@
     cameraMode = cameraMode === "chase" ? "cockpit" : "chase";
     updateHud();
   }
+  function toggleFacing() {
+    if (state !== "playing" || !duelMode) return;
+    facing *= -1;
+    updateHud();
+  }
   viewToggle.addEventListener("click", toggleCamera);
   addEventListener("keydown", event => {
     const key = event.key.toLowerCase();
@@ -1961,6 +2096,7 @@
     if (key === "escape" && state === "playing") show("pause-screen");
     else if (key === "escape" && state === "pause-screen") show("playing");
     if (key === "v" && !keys.has(key)) toggleCamera();
+    if (key === "r" && !keys.has(key)) toggleFacing();
     if ((key === "f" || key === " ") && state === "playing") fireHeld = true;
     if (key === "q" && !keys.has(key)) launchPlayerMissile();
     if (key === "n" && !keys.has(key)) launchNuke();
@@ -1985,6 +2121,10 @@
   nukeButton.addEventListener("pointerdown", event => {
     event.preventDefault();
     launchNuke();
+  });
+  turnButton.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    toggleFacing();
   });
   addEventListener("pointerup", () => { fireHeld = false; });
   canvas.addEventListener("pointerdown", event => {
