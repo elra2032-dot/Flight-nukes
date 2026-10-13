@@ -540,6 +540,7 @@
   cockpitNose.rotation.x = -Math.PI / 2;
   cockpitNose.position.set(0, -2.85, -6.25);
   cockpitInterior.add(cockpitNose);
+  cockpitInterior.visible = false;
   camera.add(cockpitInterior);
 
   scene.add(new THREE.HemisphereLight(0xe7f8ff, 0xb9b7a0, 2.35));
@@ -1806,6 +1807,7 @@
     }
     const flicker = player.invulnerable > 0 && Math.floor(timestamp / 90) % 2 === 0;
     plane.visible = cameraMode === "cockpit" ? false : !flicker;
+    cockpitInterior.visible = cameraMode === "cockpit";
     if (cameraMode === "cockpit") {
       const cockpitPosition = plane.localToWorld(new THREE.Vector3(0, .9, -.9));
       const viewTarget = plane.localToWorld(new THREE.Vector3(0, .45, -42));
