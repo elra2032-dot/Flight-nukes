@@ -163,6 +163,8 @@
     .plane-emoji { font-size: 19px; }
     .plane-card strong { display: block; font: 700 10px "Space Grotesk", sans-serif; }
     .plane-card small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; line-height: 1.25; }
+    .plane-card { position: relative; overflow: hidden; }
+    .plane-card::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--plane-accent, #efae79); opacity: .7; }
     .upgrade-card {
       position: relative; min-height: 174px; padding: 15px 13px 13px; overflow: hidden;
       text-align: left; border: 1px solid #e5e9e0; border-radius: 15px;
@@ -302,7 +304,7 @@
         <div class="upgrade-head"><div><div class="eyebrow" id="upgrade-eyebrow">Flight 1 complete</div><h2 id="upgrade-title">A little tune-up?</h2></div><div class="bank">🪙 <span id="bank">0</span></div></div>
         <p class="upgrade-sub" id="upgrade-sub">Pick one upgrade for the next leg of your journey.</p>
         <div class="cards" id="cards"></div>
-        <div class="hangar-heading"><span class="hangar-title">Your hangar</span><span class="hangar-hint">Choose a plane for the next flight</span></div>
+        <div class="hangar-heading"><span class="hangar-title">Your fleet · 11 aircraft</span><span class="hangar-hint">Choose a plane for the next flight</span></div>
         <div class="plane-cards" id="plane-cards"></div>
         <div class="upgrade-footer"><button class="reroll" id="reroll">↻ &nbsp;Show different upgrades</button><button class="primary" id="continue">Choose an upgrade <span>→</span></button></div>
       </div>
@@ -368,6 +370,11 @@
     { id: "ace", name: "Sunstriker", emoji: "☀️", unlock: 4, ability: "Rapid fire", detail: "Cannons fire 40% faster.", speed: 1.04, turn: 1, hull: 0, missiles: 0, fire: 1.4, coins: 0, wingSpan: .88, body: 0xffeed6, wing: 0xf8c765, trim: 0xe8754f },
     { id: "courier", name: "Goldfinch", emoji: "🪙", unlock: 5, ability: "Lucky cargo", detail: "Collect one extra coin each pickup.", speed: 1, turn: 1, hull: 0, missiles: 0, fire: 1, coins: 1, wingSpan: 1.08, body: 0xfff2ca, wing: 0xf4cc68, trim: 0xd99b35 },
     { id: "bomber", name: "Stormbringer", emoji: "☄️", unlock: 6, ability: "Bomb bay", detail: "Carry one extra nuke each flight.", speed: .94, turn: .9, hull: 1, missiles: 0, nukes: 1, fire: 1, coins: 0, wingSpan: 1.28, body: 0xe4e2d5, wing: 0xc5b995, trim: 0x8b9770 },
+    { id: "comet", name: "Comet", emoji: "💫", unlock: 7, ability: "Afterburner", detail: "The fastest plane in the hangar.", speed: 1.48, turn: 1.12, hull: 0, missiles: 0, fire: 1.1, coins: 0, wingSpan: .72, body: 0x183c64, wing: 0x2e78ad, trim: 0x59e3ed, style: "jet" },
+    { id: "glacier", name: "Glacier", emoji: "❄️", unlock: 8, ability: "Cloud dancer", detail: "Wide wings and extra-agile steering.", speed: 1.08, turn: 1.42, hull: 1, missiles: 0, fire: 1, coins: 0, wingSpan: 1.42, body: 0xdcebf4, wing: 0x8bd4df, trim: 0x397fa2, style: "glider" },
+    { id: "thunder", name: "Thunderbolt", emoji: "⚡", unlock: 9, ability: "Storm cannons", detail: "The quickest-firing guns in the sky.", speed: 1.12, turn: 1.05, hull: 1, missiles: 1, fire: 1.85, coins: 0, wingSpan: .94, body: 0x4e4b78, wing: 0x8175ba, trim: 0xf2b95f, style: "jet" },
+    { id: "fortress", name: "Sky Fortress", emoji: "🏰", unlock: 10, ability: "Flying fortress", detail: "Three extra hull, missiles, and a nuke.", speed: .88, turn: .82, hull: 3, missiles: 2, nukes: 1, fire: 1.15, coins: 0, wingSpan: 1.52, body: 0x62705f, wing: 0x95a47a, trim: 0xe1b86e, style: "biplane" },
+    { id: "aurora", name: "Aurora", emoji: "🌌", unlock: 12, ability: "Lucky streak", detail: "Bonus coins with swift, balanced flight.", speed: 1.18, turn: 1.18, hull: 1, missiles: 1, fire: 1.2, coins: 1, wingSpan: 1.12, body: 0x38295f, wing: 0x7657a5, trim: 0x61edc5, style: "glider" },
   ];
   let state = "welcome";
   let lastTime = 0;
@@ -409,17 +416,17 @@
   const blastEffects = [];
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
+  renderer.toneMappingExposure = 1.16;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xb5e3ee);
-  scene.fog = new THREE.Fog(0xb5e3ee, 65, 165);
+  scene.background = new THREE.Color(0x9ed9eb);
+  scene.fog = new THREE.Fog(0xb5e3ee, 78, 190);
   const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .1, 260);
   camera.position.set(0, 5, 11);
   scene.add(camera);
@@ -455,17 +462,20 @@
   cockpitInterior.add(cockpitNose);
   camera.add(cockpitInterior);
 
-  scene.add(new THREE.HemisphereLight(0xe7f8ff, 0xb9b7a0, 2.1));
-  const sunLight = new THREE.DirectionalLight(0xfff1d2, 3.2);
+  scene.add(new THREE.HemisphereLight(0xe7f8ff, 0xb9b7a0, 2.35));
+  const sunLight = new THREE.DirectionalLight(0xfff1d2, 3.6);
   sunLight.position.set(-9, 18, 9);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(1024, 1024);
+  sunLight.shadow.mapSize.set(1536, 1536);
   sunLight.shadow.camera.left = -24;
   sunLight.shadow.camera.right = 24;
   sunLight.shadow.camera.top = 24;
   sunLight.shadow.camera.bottom = -24;
   scene.add(sunLight);
   scene.add(new THREE.AmbientLight(0xffffff, .38));
+  const skyFill = new THREE.DirectionalLight(0xaadfff, 1.05);
+  skyFill.position.set(12, 8, -18);
+  scene.add(skyFill);
 
   const sun = new THREE.Mesh(
     new THREE.SphereGeometry(4.2, 24, 16),
@@ -488,7 +498,7 @@
   flightGrid.material.opacity = .2;
   scene.add(flightGrid);
 
-  const cloudGeometry = new THREE.SphereGeometry(1, 14, 10);
+  const cloudGeometry = new THREE.SphereGeometry(1, 20, 14);
   const cloudMaterials = [
     new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
     new THREE.MeshStandardMaterial({ color: 0xf4f8f1, roughness: 1, flatShading: true }),
@@ -696,14 +706,14 @@
   const plane = new THREE.Group();
   let bodyWing, tailWingMesh;
   const planeBody = new THREE.Mesh(
-    new THREE.CylinderGeometry(.12, .24, 2.7, 10, 1, false),
-    new THREE.MeshStandardMaterial({ color: 0xfff4d6, roughness: .43, metalness: .07, flatShading: true })
+    new THREE.CylinderGeometry(.12, .24, 2.7, 16, 1, false),
+    new THREE.MeshStandardMaterial({ color: 0xfff4d6, roughness: .34, metalness: .12, flatShading: true })
   );
   planeBody.rotation.x = Math.PI / 2;
   planeBody.castShadow = true;
   plane.add(planeBody);
   const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(.235, .55, 10),
+    new THREE.ConeGeometry(.235, .55, 14),
     new THREE.MeshStandardMaterial({ color: 0xf08a5c, roughness: .42, metalness: .08, flatShading: true })
   );
   nose.rotation.x = -Math.PI / 2;
@@ -711,10 +721,56 @@
   nose.castShadow = true;
   plane.add(nose);
   bodyWing = addWing(plane);
+  const decalMaterial = new THREE.MeshStandardMaterial({ color: 0xf08a5c, roughness: .38, metalness: .08 });
+  for (const side of [-1, 1]) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(.34, .045, .58), decalMaterial);
+    stripe.position.set(side * .94, .095, -.02);
+    stripe.rotation.y = side * -.12;
+    stripe.castShadow = true;
+    plane.add(stripe);
+  }
   const tailWing = new THREE.Group();
   tailWingMesh = addWing(tailWing, .27);
   tailWing.position.z = 1.06;
   plane.add(tailWing);
+  const planeDetails = new THREE.Group();
+  plane.add(planeDetails);
+  const jetDetails = new THREE.Group();
+  const engineMetal = new THREE.MeshStandardMaterial({ color: 0x425c6a, metalness: .78, roughness: .25 });
+  const exhaustMaterial = new THREE.MeshStandardMaterial({
+    color: 0x68e5ee, emissive: 0x188ca6, emissiveIntensity: 1.5, metalness: .25, roughness: .22,
+  });
+  for (const side of [-1, 1]) {
+    const nacelle = new THREE.Mesh(new THREE.CylinderGeometry(.17, .21, 1.32, 14), engineMetal);
+    nacelle.rotation.x = Math.PI / 2;
+    nacelle.position.set(side * .58, -.14, .12);
+    nacelle.castShadow = true;
+    jetDetails.add(nacelle);
+    const exhaust = new THREE.Mesh(new THREE.ConeGeometry(.15, .55, 12), exhaustMaterial);
+    exhaust.rotation.x = Math.PI / 2;
+    exhaust.position.set(side * .58, -.14, .98);
+    jetDetails.add(exhaust);
+  }
+  planeDetails.add(jetDetails);
+  const biplaneDetails = new THREE.Group();
+  const upperWing = addWing(biplaneDetails, .78);
+  upperWing.position.y = .64;
+  upperWing.material = upperWing.material.clone();
+  upperWing.material.color.setHex(0xc5b995);
+  for (const side of [-1, 1]) {
+    const strut = new THREE.Mesh(new THREE.BoxGeometry(.075, .72, .09), engineMetal);
+    strut.position.set(side * 1.25, .34, .05);
+    strut.rotation.z = side * -.12;
+    strut.castShadow = true;
+    biplaneDetails.add(strut);
+  }
+  planeDetails.add(biplaneDetails);
+  const canard = new THREE.Group();
+  const canardWing = addWing(canard, .42);
+  canardWing.material = canardWing.material.clone();
+  canardWing.material.color.setHex(0x8bd4df);
+  canard.position.set(0, .02, -.92);
+  planeDetails.add(canard);
   const tailFin = new THREE.Mesh(
     new THREE.ConeGeometry(.22, .65, 4),
     new THREE.MeshStandardMaterial({ color: 0xe17b55, roughness: .55, flatShading: true })
@@ -748,6 +804,13 @@
     tailWingMesh.scale.x = .27 * model.wingSpan;
     nose.material.color.setHex(model.trim);
     tailFin.material.color.setHex(model.trim);
+    decalMaterial.color.setHex(model.trim);
+    jetDetails.visible = model.style === "jet";
+    biplaneDetails.visible = model.style === "biplane";
+    canard.visible = model.style === "glider";
+    if (model.style === "jet") exhaustMaterial.color.setHex(model.trim);
+    if (model.style === "glider") canardWing.material.color.setHex(model.wing);
+    if (model.style === "biplane") upperWing.material.color.setHex(model.wing);
     document.querySelector(".hangar-hint").textContent = `${model.emoji} ${model.name} · ${model.detail}`;
     updateContinueLabel();
   }
