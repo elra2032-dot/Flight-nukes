@@ -452,33 +452,93 @@
   scene.add(camera);
 
   const cockpitInterior = new THREE.Group();
-  const dashMaterial = new THREE.MeshStandardMaterial({ color: 0x426878, roughness: .58, metalness: .12 });
+  const dashMaterial = new THREE.MeshStandardMaterial({ color: 0x233f4b, roughness: .58, metalness: .2 });
   const dashTrimMaterial = new THREE.MeshStandardMaterial({ color: 0xe99461, roughness: .46, metalness: .12 });
-  const dialMaterial = new THREE.MeshStandardMaterial({ color: 0xb6d8ce, emissive: 0x26443f, roughness: .3 });
-  const dashboard = new THREE.Mesh(new THREE.BoxGeometry(4.8, .4, .28), dashMaterial);
-  dashboard.position.set(0, -2.35, -5.25);
-  cockpitInterior.add(dashboard);
-  const dashLip = new THREE.Mesh(new THREE.BoxGeometry(4.85, .05, .35), dashTrimMaterial);
-  dashLip.position.set(0, -2.12, -5.27);
-  cockpitInterior.add(dashLip);
-  for (const x of [-2.65, 2.65]) {
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(.1, 1.25, .14), dashMaterial);
-    pillar.position.set(x, -.05, -7.1);
-    pillar.rotation.z = x < 0 ? -.16 : .16;
-    cockpitInterior.add(pillar);
+  const instrumentMaterial = new THREE.MeshStandardMaterial({ color: 0x132b35, roughness: .38, metalness: .18 });
+  const instrumentFaceMaterial = new THREE.MeshStandardMaterial({ color: 0xd9eee4, emissive: 0x172e2a, roughness: .32 });
+  const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x81969a, metalness: .72, roughness: .3 });
+  const glassMaterial = new THREE.MeshBasicMaterial({
+    color: 0xa9e5ef, transparent: true, opacity: .1, side: THREE.DoubleSide, depthWrite: false,
+  });
+  const cockpitBox = (width, height, depth, material, x, y, z) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.position.set(x, y, z);
+    cockpitInterior.add(mesh);
+    return mesh;
+  };
+  const cockpitBeam = (start, end, radius, material) => {
+    const from = new THREE.Vector3(...start);
+    const to = new THREE.Vector3(...end);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, from.distanceTo(to), 10), material);
+    mesh.position.copy(from).add(to).multiplyScalar(.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
+    cockpitInterior.add(mesh);
+    return mesh;
+  };
+
+  const windshield = new THREE.Mesh(new THREE.PlaneGeometry(5.25, 4.3), glassMaterial);
+  windshield.position.set(0, .35, -8.15);
+  cockpitInterior.add(windshield);
+  cockpitBox(5.8, .2, .24, dashMaterial, 0, 2.5, -8);
+  cockpitBox(5.8, .14, .2, metalMaterial, 0, 2.37, -7.96);
+  cockpitBeam([-2.9, -1.9, -5.65], [-2.55, 2.45, -8], .13, dashMaterial);
+  cockpitBeam([2.9, -1.9, -5.65], [2.55, 2.45, -8], .13, dashMaterial);
+  cockpitBeam([-2.75, -1.68, -5.72], [2.75, -1.68, -5.72], .16, dashMaterial);
+  cockpitBeam([-2.52, 2.38, -7.95], [-2.82, -1.58, -5.66], .045, metalMaterial);
+  cockpitBeam([2.52, 2.38, -7.95], [2.82, -1.58, -5.66], .045, metalMaterial);
+  cockpitBeam([-2.65, 2.38, -7.95], [0, 2.5, -8], .055, metalMaterial);
+  cockpitBeam([2.65, 2.38, -7.95], [0, 2.5, -8], .055, metalMaterial);
+
+  cockpitBox(5.8, .75, 1.05, dashMaterial, 0, -2.18, -5.25);
+  cockpitBox(5.88, .11, .98, dashTrimMaterial, 0, -1.79, -5.25);
+  cockpitBox(2.45, .48, .07, instrumentMaterial, 0, -2.02, -4.69);
+  cockpitBox(.05, .34, .035, dashTrimMaterial, 0, -2.02, -4.64);
+  cockpitBox(.62, .1, .04, dashTrimMaterial, 0, -1.9, -4.63);
+
+  const gaugePositions = [
+    [-2.05, -2.05, .29], [-1.28, -2.05, .23], [-.68, -2.05, .19],
+    [.68, -2.05, .19], [1.28, -2.05, .23], [2.05, -2.05, .29],
+  ];
+  gaugePositions.forEach(([x, y, radius], index) => {
+    const gauge = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, .11, 32), instrumentMaterial);
+    gauge.position.set(x, y, -4.63);
+    gauge.rotation.x = Math.PI / 2;
+    cockpitInterior.add(gauge);
+    const face = new THREE.Mesh(new THREE.CircleGeometry(radius * .76, 32), instrumentFaceMaterial);
+    face.position.set(x, y, -4.565);
+    cockpitInterior.add(face);
+    for (let tick = 0; tick < 9; tick++) {
+      const angle = Math.PI * (.15 + tick * .7 / 8);
+      const mark = cockpitBox(.025, radius * .17, .018, dashMaterial,
+        x + Math.cos(angle) * radius * .57, y + Math.sin(angle) * radius * .57, -4.54);
+      mark.rotation.z = angle - Math.PI / 2;
+    }
+    const needle = cockpitBox(.025, radius * .85, .025, dashTrimMaterial, x, y, -4.52);
+    needle.rotation.z = -.58 + index * .21;
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(.055, 10, 8), metalMaterial);
+    cap.position.set(x, y, -4.49);
+    cockpitInterior.add(cap);
+  });
+
+  for (const [x, color] of [[-2.72, 0x5ee1c0], [2.72, 0xff8a68]]) {
+    const indicator = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: .7 });
+    const light = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), indicator);
+    light.position.set(x, -1.98, -4.58);
+    cockpitInterior.add(light);
   }
-  for (const [x, z, radius] of [[-1.35, -5.03, .12], [-.72, -5.03, .075], [0, -5.03, .075], [.72, -5.03, .075], [1.35, -5.03, .12]]) {
-    const dial = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, .06, 20), dialMaterial);
-    dial.position.set(x, -2.13, z);
-    dial.rotation.x = Math.PI / 2;
-    cockpitInterior.add(dial);
-  }
+  const yoke = new THREE.Mesh(new THREE.TorusGeometry(.58, .075, 10, 36), metalMaterial);
+  yoke.position.set(0, -1.24, -4.25);
+  cockpitInterior.add(yoke);
+  cockpitBeam([0, -1.72, -4.25], [0, -.68, -4.25], .055, metalMaterial);
+  cockpitBeam([-.49, -1.48, -4.25], [.49, -1.48, -4.25], .045, metalMaterial);
+  cockpitBox(.36, .18, .17, dashTrimMaterial, 0, -1.24, -4.27);
+
   const cockpitNose = new THREE.Mesh(
-    new THREE.ConeGeometry(.25, 1.25, 8),
+    new THREE.ConeGeometry(.24, 1.1, 8),
     new THREE.MeshStandardMaterial({ color: 0xf08a5c, roughness: .48, flatShading: true })
   );
   cockpitNose.rotation.x = -Math.PI / 2;
-  cockpitNose.position.set(0, -2.55, -6.25);
+  cockpitNose.position.set(0, -2.85, -6.25);
   cockpitInterior.add(cockpitNose);
   camera.add(cockpitInterior);
 
