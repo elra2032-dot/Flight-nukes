@@ -53,7 +53,14 @@
     .hud-label { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
     .hud-value { margin-top: 1px; font: 600 14px "DM Mono", monospace; }
     .hud-icon { font-size: 17px; }
-    .round-hud { min-width: 110px; }
+    .round-hud { min-width: 136px; }
+    .location-banner {
+      position: absolute; z-index: 2; top: 83px; right: 32px; display: flex; align-items: center; gap: 6px;
+      padding: 7px 11px; border: 1px solid rgba(24,51,67,.12); border-radius: 10px;
+      color: #355a58; background: rgba(255,253,246,.8); backdrop-filter: blur(10px);
+      box-shadow: 0 3px 10px rgba(24,51,67,.04); font-size: 10px; font-weight: 700;
+      letter-spacing: .03em; white-space: nowrap; pointer-events: none;
+    }
     .round-pips { display: flex; gap: 3px; margin-top: 4px; }
     .round-pips i { display: block; width: 13px; height: 3px; border-radius: 2px; background: #d9e2dc; }
     .round-pips i.on { background: var(--orange); }
@@ -215,6 +222,7 @@
       .brand-mark { width: 32px; height: 32px; }
       .hud { gap: 6px; }
       .hud-chip { min-width: 0; padding: 7px 9px; gap: 6px; }
+      .location-banner { top: 73px; right: 12px; padding: 6px 9px; }
       .view-button { min-height: 34px; padding: 0 8px; font-size: 8px; }
       .online-indicator { width: 34px; min-width: 34px; height: 34px; padding: 0; overflow: hidden; font-size: 0; }
       .online-indicator::after { content: "●"; font-size: 11px; }
@@ -264,6 +272,7 @@
         <button class="pause-button hidden" id="pause" aria-label="Pause flight">Ⅱ</button>
       </div>
     </header>
+    <div class="location-banner"><span aria-hidden="true">📍</span><span id="location-name">Cloud Meadow</span></div>
     <div class="game-hint hidden" id="hint">
       <span class="hint-keys"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></span>
       <span>steer</span><span style="opacity:.4">·</span><span>F fire</span><span style="opacity:.4">·</span><span>Q missile</span><span style="opacity:.4">·</span><span>N nuke</span><span style="opacity:.4">·</span><span>V view</span>
@@ -376,6 +385,16 @@
     { id: "fortress", name: "Sky Fortress", emoji: "🏰", unlock: 10, ability: "Flying fortress", detail: "Three extra hull, missiles, and a nuke.", speed: .88, turn: .82, hull: 3, missiles: 2, nukes: 1, fire: 1.15, coins: 0, wingSpan: 1.52, body: 0x62705f, wing: 0x95a47a, trim: 0xe1b86e, style: "biplane" },
     { id: "aurora", name: "Aurora", emoji: "🌌", unlock: 12, ability: "Lucky streak", detail: "Bonus coins with swift, balanced flight.", speed: 1.18, turn: 1.18, hull: 1, missiles: 1, fire: 1.2, coins: 1, wingSpan: 1.12, body: 0x38295f, wing: 0x7657a5, trim: 0x61edc5, style: "glider" },
   ];
+  const locations = [
+    { name: "Cloud Meadow", kind: "meadow", sky: 0x9ed9eb, fog: 0xb5e3ee, ground: 0xd7e9dc, grid: 0xb8d7d0, clouds: [0xffffff, 0xf4f8f1], buildings: [0xd6b998, 0xbcc4b7, 0xd9c9a7, 0xb5c8c4], roof: 0xc97e61, windows: 0xffe6a3, tank: 0x718b68, tracks: 0x3e5047, armor: 0x8da17a, barrel: 0x485a4d, sun: 0xffedbd, accent: 0x718f68 },
+    { name: "Sunset Canyon", kind: "desert", sky: 0xe8b879, fog: 0xe8cfaa, ground: 0xc99a63, grid: 0xa87950, clouds: [0xfff4dc, 0xf6d8b3], buildings: [0xd7a46e, 0xc58c58, 0xe2b87c, 0xb97d52], roof: 0x9e5e45, windows: 0xffe1a0, tank: 0x9a8051, tracks: 0x52463a, armor: 0xb69a62, barrel: 0x554637, sun: 0xffdf9a, accent: 0xe2a35f },
+    { name: "Frostwind Peaks", kind: "arctic", sky: 0x9bcce0, fog: 0xc7e2eb, ground: 0xc7e2e7, grid: 0x80b5c4, clouds: [0xffffff, 0xe2f4fa], buildings: [0xc8d9dd, 0xa8c3ca, 0xd7e5e2, 0xb5d0d5], roof: 0x628fa2, windows: 0xd6f4ff, tank: 0x78979a, tracks: 0x42585d, armor: 0x9cb8b8, barrel: 0x465f62, sun: 0xfff4d8, accent: 0xa7dce9 },
+    { name: "Skyline Harbor", kind: "city", sky: 0x91c3d4, fog: 0xa9cbd0, ground: 0x829d9a, grid: 0x63847f, clouds: [0xf6fbfa, 0xcbdde0], buildings: [0x829da6, 0x657e8b, 0x9cabb0, 0x708e96], roof: 0x526c79, windows: 0xffe59a, tank: 0x657d74, tracks: 0x37464a, armor: 0x91a096, barrel: 0x3e4d50, sun: 0xffdda1, accent: 0x70a7b2 },
+    { name: "Ember Volcano", kind: "volcano", sky: 0xc98572, fog: 0x87625e, ground: 0x51434a, grid: 0x806057, clouds: [0xf2d5c8, 0xd6aaa0], buildings: [0x77615b, 0x62545a, 0x8b6a5c, 0x665c62], roof: 0x493b43, windows: 0xffb66f, tank: 0x665b4d, tracks: 0x343138, armor: 0x8a7761, barrel: 0x36343a, sun: 0xffb47f, accent: 0xd57655 },
+    { name: "Palmwind Coast", kind: "coast", sky: 0x80d5df, fog: 0xb6e2dc, ground: 0x65a9a4, grid: 0x3c8580, clouds: [0xffffff, 0xdff8f3], buildings: [0xe3d2ae, 0xc7cfad, 0xe8cda1, 0xa9c8b9], roof: 0x9d704f, windows: 0xffedb5, tank: 0x788b61, tracks: 0x41524b, armor: 0x9eaa75, barrel: 0x465146, sun: 0xfff0bd, accent: 0x63b6a0 },
+    { name: "Moonlit Highlands", kind: "highlands", sky: 0x737fae, fog: 0x9298b5, ground: 0x666f73, grid: 0x9299a4, clouds: [0xe7e9fa, 0xb8bfdc], buildings: [0x8c899e, 0x747e91, 0xa49a9f, 0x7d9197], roof: 0x595a75, windows: 0xffe7a7, tank: 0x6e7e70, tracks: 0x3c4549, armor: 0x89967f, barrel: 0x3e484d, sun: 0xe9e5ff, accent: 0xa5b5e8 },
+  ];
+  const locationForFlight = flight => locations[(flight - 1) % locations.length];
   let state = "welcome";
   let lastTime = 0;
   let elapsed = 0;
@@ -413,6 +432,7 @@
   const scenery = [];
   const groundObjects = [];
   const groundTanks = [];
+  const locationLandmarks = [];
   const blastEffects = [];
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -503,6 +523,110 @@
     new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
     new THREE.MeshStandardMaterial({ color: 0xf4f8f1, roughness: 1, flatShading: true }),
   ];
+  const locationLandmarkMaterials = new Map();
+  function addLandmarkPiece(group, geometry, material, x, y, z) {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  }
+
+  function clearLocationLandmarks() {
+    locationLandmarks.forEach(landmark => {
+      scene.remove(landmark);
+      landmark.traverse(child => {
+        if (child.isMesh) child.geometry.dispose();
+      });
+      const index = groundObjects.indexOf(landmark);
+      if (index >= 0) groundObjects.splice(index, 1);
+    });
+    locationLandmarks.length = 0;
+  }
+
+  function addLocationLandmark(location, index) {
+    const group = new THREE.Group();
+    const materials = locationLandmarkMaterials.get(location.kind);
+    if (location.kind === "meadow" || location.kind === "arctic" || location.kind === "highlands") {
+      const height = rand(12, 24);
+      const radius = rand(6, 12);
+      addLandmarkPiece(group, new THREE.ConeGeometry(radius, height, 6), materials.base, 0, height / 2, 0);
+      if (location.kind === "arctic") {
+        addLandmarkPiece(group, new THREE.ConeGeometry(radius * .34, height * .34, 6), materials.accent, 0, height * .82, 0);
+      }
+      if (location.kind === "meadow") {
+        addLandmarkPiece(group, new THREE.ConeGeometry(radius * .7, height * .32, 6), materials.accent, rand(-3, 3), rand(1, 3), -2);
+      }
+    } else if (location.kind === "desert") {
+      const height = rand(9, 16);
+      addLandmarkPiece(group, new THREE.CylinderGeometry(rand(4, 6), rand(7, 10), height, 7), materials.base, 0, height / 2, 0);
+      const cactus = new THREE.Group();
+      const trunk = addLandmarkPiece(cactus, new THREE.CylinderGeometry(.38, .48, 5, 7), materials.accent, 0, 2.5, 0);
+      trunk.rotation.z = -.08;
+      for (const side of [-1, 1]) {
+        const arm = addLandmarkPiece(cactus, new THREE.CylinderGeometry(.22, .28, 2.2, 6), materials.accent, side * .75, 2.3, 0);
+        arm.rotation.z = side * -.75;
+      }
+      cactus.position.set(rand(-9, 9), 0, 2);
+      group.add(cactus);
+    } else if (location.kind === "city") {
+      const height = rand(13, 27);
+      const tower = addLandmarkPiece(group, new THREE.BoxGeometry(rand(5, 9), height, rand(5, 9)), materials.base, 0, height / 2, 0);
+      tower.rotation.y = rand(-.35, .35);
+      addLandmarkPiece(group, new THREE.BoxGeometry(1.2, rand(3, 7), 1.2), materials.accent, 0, height + 2, 0);
+    } else if (location.kind === "volcano") {
+      const height = rand(14, 23);
+      const radius = rand(7, 11);
+      addLandmarkPiece(group, new THREE.ConeGeometry(radius, height, 7), materials.base, 0, height / 2, 0);
+      const lava = addLandmarkPiece(group, new THREE.BoxGeometry(.5, height * .56, .24), materials.accent, radius * .18, height * .3, radius * .22);
+      lava.rotation.z = -.2;
+    } else if (location.kind === "coast") {
+      const trunk = addLandmarkPiece(group, new THREE.CylinderGeometry(.24, .44, 9, 7), materials.base, 0, 4.5, 0);
+      trunk.rotation.z = .16;
+      for (let frond = 0; frond < 5; frond++) {
+        const angle = frond * Math.PI * 2 / 5;
+        const leaf = addLandmarkPiece(group, new THREE.ConeGeometry(.65, 5.5, 5), materials.accent, Math.sin(angle) * 2, 9, Math.cos(angle) * 2);
+        leaf.rotation.z = Math.cos(angle) * .95;
+        leaf.rotation.x = Math.sin(angle) * .85;
+      }
+    }
+    group.position.set((index % 2 ? 1 : -1) * rand(22, 36), -9, rand(-185, -110));
+    group.userData.kind = "landmark";
+    group.userData.speed = rand(.35, .58);
+    scene.add(group);
+    groundObjects.push(group);
+    locationLandmarks.push(group);
+  }
+
+  function applyLocation() {
+    const location = locationForFlight(round);
+    clearLocationLandmarks();
+    scene.background.setHex(location.sky);
+    scene.fog.color.setHex(location.fog);
+    ground.material.color.setHex(location.ground);
+    flightGrid.material.color.setHex(location.grid);
+    cloudMaterials.forEach((material, index) => material.color.setHex(location.clouds[index]));
+    buildingMaterials.forEach((material, index) => material.color.setHex(location.buildings[index]));
+    roofMaterial.color.setHex(location.roof);
+    windowMaterial.color.setHex(location.windows);
+    tankBodyMaterial.color.setHex(location.tank);
+    tankTrackMaterial.color.setHex(location.tracks);
+    tankMetalMaterial.color.setHex(location.armor);
+    tankBarrelMaterial.color.setHex(location.barrel);
+    sun.material.color.setHex(location.sun);
+    if (!locationLandmarkMaterials.has(location.kind)) {
+      locationLandmarkMaterials.set(location.kind, {
+        base: new THREE.MeshStandardMaterial({ color: location.ground, roughness: 1, flatShading: true }),
+        accent: new THREE.MeshStandardMaterial({ color: location.accent, roughness: .9, flatShading: true }),
+      });
+    }
+    const landmarkMaterials = locationLandmarkMaterials.get(location.kind);
+    landmarkMaterials.base.color.setHex(location.ground);
+    landmarkMaterials.accent.color.setHex(location.accent);
+    for (let i = 0; i < 8; i++) addLocationLandmark(location, i);
+    document.querySelector("#location-name").textContent = location.name;
+  }
   function makeCloud(scale = 1, detailed = false) {
     const group = new THREE.Group();
     const puffs = detailed
@@ -1307,6 +1431,7 @@
     nukeButtonCountEl.textContent = nukeAmmo;
     healthEl.textContent = health;
     roundEl.textContent = round;
+    document.querySelector("#location-name").textContent = locationForFlight(round).name;
     viewToggle.textContent = `${cameraMode === "chase" ? "CHASE" : "COCKPIT"} VIEW · V`;
     document.querySelector("#round-pips").innerHTML = Array.from(
       { length: 5 },
@@ -1341,6 +1466,7 @@
     plane.visible = true;
     camera.position.set(player.x, player.y + 4.2, 11);
     applyAircraft();
+    applyLocation();
     show("playing");
     updateHud();
   }
@@ -1351,10 +1477,10 @@
     const earned = roundCoins + bonus;
     totalCoins += bonus;
     document.querySelector("#bank").textContent = totalCoins;
-    document.querySelector("#upgrade-eyebrow").textContent = `Flight ${round} complete`;
+    document.querySelector("#upgrade-eyebrow").textContent = `Flight ${round} complete · ${locationForFlight(round).name}`;
     document.querySelector("#upgrade-title").textContent = crashed ? "Soft landing!" : "A little tune-up?";
     document.querySelector("#upgrade-sub").textContent =
-      `You brought home ${earned} coins. Choose a plane and upgrade for flight ${round + 1}.`;
+      `You brought home ${earned} coins. Flight ${round + 1} heads to ${locationForFlight(round + 1).name}. Choose a plane and upgrade.`;
     createChoices();
     updateHud();
     show("upgrade-screen");
