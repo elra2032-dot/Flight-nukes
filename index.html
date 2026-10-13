@@ -76,6 +76,22 @@
       display: flex; align-items: center; gap: 11px; color: rgba(24,51,67,.72);
       font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none;
     }
+    .target-lock {
+      position: absolute; z-index: 2; left: 50%; top: 50%; width: 74px; height: 74px;
+      transform: translate(-50%, -50%); color: #fff8dc; pointer-events: none;
+      filter: drop-shadow(0 2px 5px rgba(19, 42, 52, .72));
+    }
+    .target-lock svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .target-lock-ring { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 188.5; stroke-dashoffset: 188.5; }
+    .target-lock-frame { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+    .target-lock[data-locked="true"] { color: #9dffd0; }
+    .target-lock-label {
+      position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%);
+      padding: 3px 6px; border-radius: 5px; color: #fff8dc; background: rgba(24,51,67,.72);
+      font: 700 8px "DM Mono", monospace; letter-spacing: .12em; white-space: nowrap;
+    }
+    .target-lock[data-locked="true"] .target-lock-label { color: #b5ffdb; }
+    .target-lock[data-offscreen="true"] { color: #ffd58b; }
     .key {
       display: inline-grid; place-items: center; width: 23px; height: 23px;
       border: 1px solid rgba(24,51,67,.22); border-bottom-width: 2px;
@@ -235,6 +251,7 @@
       .weapon-controls { right: 8px; bottom: 10px; gap: 4px; }
       .weapon-button { min-width: 58px; height: 51px; padding: 5px 6px; font-size: 12px; }
       .game-hint { display: none !important; }
+      .target-lock { width: 62px; height: 62px; }
       .panel { padding: 25px 22px; }
       .upgrade-panel { padding: 22px 16px; }
       .cards { gap: 6px; }
@@ -279,6 +296,13 @@
     <div class="game-hint hidden" id="hint">
       <span class="hint-keys"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></span>
       <span>steer</span><span style="opacity:.4">·</span><span>F fire</span><span style="opacity:.4">·</span><span>Q missile</span><span style="opacity:.4">·</span><span>N nuke</span><span style="opacity:.4">·</span><span>R turn around</span><span style="opacity:.4">·</span><span>V view</span>
+    </div>
+    <div class="target-lock hidden" id="target-lock" data-locked="false" data-offscreen="false" role="status" aria-live="polite">
+      <svg viewBox="0 0 80 80" aria-hidden="true">
+        <circle class="target-lock-ring" id="target-lock-ring" cx="40" cy="40" r="30"></circle>
+        <path class="target-lock-frame" d="M28 4H18a14 14 0 0 0-14 14v10M52 4h10a14 14 0 0 1 14 14v10M4 52v10a14 14 0 0 0 14 14h10M76 52v10a14 14 0 0 1-14 14H52M36 40h8M40 36v8"></path>
+      </svg>
+      <span class="target-lock-label" id="target-lock-label">ACQUIRING</span>
     </div>
     <div class="weapon-controls hidden" id="weapon-controls">
       <button class="weapon-button fire" id="fire-button" aria-label="Fire cannons with F">✦<small>F · FIRE</small></button>
@@ -369,6 +393,9 @@
   const nukeButton = document.querySelector("#nuke-button");
   const turnButton = document.querySelector("#turn-button");
   const turnLabel = document.querySelector("#turn-label");
+  const targetLockEl = document.querySelector("#target-lock");
+  const targetLockRingEl = document.querySelector("#target-lock-ring");
+  const targetLockLabelEl = document.querySelector("#target-lock-label");
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const rand = (min, max) => min + Math.random() * (max - min);
   const upgrades = [
@@ -438,6 +465,8 @@
   let remotePlane = null;
   let remotePose = null;
   let receivedRemotePose = false;
+  let missileLockTarget = null;
+  let missileLockProgress = 0;
   let networkSendTimer = 0;
   let intentionalDisconnect = false;
   const movingObjects = [];
@@ -1459,12 +1488,54 @@
     fireCooldown = .24 / ((1 + stats.cannon * .2) * selectedAircraft().fire);
   }
 
+  function findMissileTarget() {
+    if (duelMode) return remotePose?.flying ? remotePlane : null;
+    const candidates = enemies.filter(enemy => enemy.position.z * facing > 3 && enemy.position.z * facing < 100);
+    if (candidates.includes(missileLockTarget)) return missileLockTarget;
+    return candidates.sort((a, b) => a.position.distanceTo(plane.position) - b.position.distanceTo(plane.position))[0] || null;
+  }
+
+  function updateMissileLock(dt) {
+    const target = state === "playing" ? findMissileTarget() : null;
+    if (target !== missileLockTarget) {
+      missileLockTarget = target;
+      missileLockProgress = 0;
+    }
+    if (!target) {
+      targetLockEl.classList.add("hidden");
+      return;
+    }
+
+    camera.updateMatrixWorld();
+    const targetWorldPosition = target.getWorldPosition(new THREE.Vector3());
+    const projected = targetWorldPosition.project(camera);
+    if (projected.z < -1 || projected.z > 1) {
+      targetLockEl.classList.add("hidden");
+      missileLockProgress = 0;
+      return;
+    }
+
+    const onScreen = Math.abs(projected.x) <= .94 && Math.abs(projected.y) <= .88;
+    missileLockProgress = onScreen ? Math.min(1, missileLockProgress + dt / 1.1) : 0;
+    targetLockEl.classList.remove("hidden");
+    targetLockEl.style.left = `${clamp((projected.x * .5 + .5) * innerWidth, 22, innerWidth - 22)}px`;
+    targetLockEl.style.top = `${clamp((-.5 * projected.y + .5) * innerHeight, 22, innerHeight - 22)}px`;
+    targetLockEl.dataset.locked = String(missileLockProgress >= 1);
+    targetLockEl.dataset.offscreen = String(!onScreen);
+    targetLockRingEl.style.strokeDashoffset = String(188.5 * (1 - missileLockProgress));
+    targetLockLabelEl.textContent = missileLockProgress >= 1 ? "LOCKED · Q FIRE" : onScreen ? "ACQUIRING" : "TRACKING";
+    targetLockEl.setAttribute("aria-label", missileLockProgress >= 1 ? "Missile target locked" : "Tracking missile target");
+  }
+
   function launchPlayerMissile() {
     if (state !== "playing" || missileAmmo <= 0) return;
     missileAmmo--;
     updateHud();
+    const lockedTarget = missileLockProgress >= 1 && missileLockTarget === findMissileTarget()
+      ? missileLockTarget
+      : null;
     if (duelMode) {
-      const target = remotePlane && remotePose?.flying ? remotePlane : null;
+      const target = lockedTarget === remotePlane ? remotePlane : null;
       addProjectile(
         "playerMissile",
         new THREE.Vector3(player.x, player.y, facing * 1.5),
@@ -1479,13 +1550,15 @@
       if (connection?.open) connection.send({ type: "duel-fire", weapon: "missile" });
       return;
     }
-    const target = enemies
-      .filter(enemy => enemy.position.z < -3 && enemy.position.z > -100)
-      .sort((a, b) => a.position.distanceTo(plane.position) - b.position.distanceTo(plane.position))[0] || null;
+    const target = lockedTarget && enemies.includes(lockedTarget) ? lockedTarget : null;
     addProjectile(
       "playerMissile",
-      new THREE.Vector3(player.x, player.y, -1.5),
-      new THREE.Vector3(target ? target.position.x - player.x : 0, target ? target.position.y - player.y : 0, -1),
+      new THREE.Vector3(player.x, player.y, facing * 1.5),
+      new THREE.Vector3(
+        target ? target.position.x - player.x : 0,
+        target ? target.position.y - player.y : 0,
+        target ? target.position.z - facing * 1.5 : facing
+      ),
       29,
       target
     );
@@ -1621,12 +1694,16 @@
     blastEffects.length = 0;
   }
 
-  function damagePlayer(amount = 1) {
+  function damagePlayer(amount = 1, impactColor = null) {
     if (player.invulnerable > 0 || state !== "playing") return;
+    if (impactColor !== null) makeEnemyExplosion(new THREE.Vector3(player.x, player.y, 0), impactColor);
     health = Math.max(0, health - amount);
     player.invulnerable = 1.1;
     updateHud();
     if (health <= 0) {
+      plane.visible = false;
+      cockpitInterior.visible = false;
+      if (impactColor === null) makeEnemyExplosion(new THREE.Vector3(player.x, player.y, 0), selectedAircraft().trim);
       if (duelMode) finishDuel(false, true);
       else endRound(true);
     }
@@ -1855,7 +1932,7 @@
             continue;
           }
           if (object.userData.kind === "obstacle" && Math.hypot(dx, dy) < object.userData.hitRadius + .55 && player.invulnerable <= 0) {
-            damagePlayer();
+            damagePlayer(1, selectedAircraft().trim);
             if (state !== "playing") break;
           } else if (object.userData.kind === "obstacle") {
             dodged++;
@@ -2047,6 +2124,7 @@
       camera.up.set(0, 1, 0);
       camera.lookAt(player.x * .3, player.y * .35, facing * 21);
     }
+    updateMissileLock(dt);
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }

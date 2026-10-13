@@ -17,3 +17,18 @@ from external CDNs, so gameplay needs an internet connection.
    Pages** after deployment finishes.
 
 Multiplayer also needs access to PeerJS signaling and WebRTC connections.
+
+Each flight visits a different location, cycling through seven themed
+landscapes with matching skies, ground colors, and landmarks.
+
+Online play supports shared flight rooms and 1v1 duels. One player hosts a
+duel and shares the room code; the other joins with that code. In a duel,
+cannon and missile hits reduce the opponent's hull until one pilot is shot
+down. Press **R** or use the on-screen turn button to turn around and fly in
+the opposite direction; cannons, missiles, the plane, and chase/cockpit views
+follow the new heading.
+
+Colliding with an obstacle triggers a plane-impact explosion and damages the
+hull; a fatal crash explodes the plane. Missile targets are tracked with an
+on-screen crosshair and progress ring; once locked, press **Q** to launch a
+homing missile at the target.
