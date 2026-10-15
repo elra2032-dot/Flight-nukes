@@ -14,6 +14,7 @@
       --mint: #74c9a5;
       --line: rgba(24, 51, 67, .14);
     }
+
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
     body {
@@ -170,6 +171,45 @@
       font: 600 12px "DM Mono", monospace; white-space: nowrap;
     }
     .upgrade-sub { margin: 10px 0 19px; color: var(--muted); font-size: 12px; }
+    .mystery-box {
+      margin: 0 0 17px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      border: 1px solid #efdfb8; border-radius: 13px; background: #fff8e8;
+    }
+    .mystery-box.opening { animation: box-rattle .72s ease-in-out 2; box-shadow: 0 0 0 4px rgba(244, 190, 95, .24); }
+    @keyframes box-rattle {
+      0%, 100% { transform: rotate(0) scale(1); }
+      20% { transform: rotate(-2deg) scale(1.015); }
+      40% { transform: rotate(2deg) scale(1.025); }
+      60% { transform: rotate(-1.5deg) scale(1.015); }
+      80% { transform: rotate(1deg) scale(1.01); }
+    }
+    .mystery-copy strong { display: block; font: 700 12px "Space Grotesk", sans-serif; }
+    .mystery-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    .mystery-result { margin-top: 5px; color: #94641c; font-size: 10px; font-weight: 700; }
+    .mystery-result.reveal { animation: reward-reveal .45s cubic-bezier(.2,.75,.25,1) both; }
+    @keyframes reward-reveal { from { opacity: 0; transform: translateY(7px) scale(.95); } to { opacity: 1; transform: none; } }
+    .mystery-button {
+      flex: 0 0 auto; min-height: 39px; padding: 0 13px; border: 0; border-radius: 10px;
+      color: white; background: #ad7627; font-size: 10px; font-weight: 800; cursor: pointer;
+    }
+    .mystery-button:hover:not(:disabled) { background: #895b1c; }
+    .mystery-button:disabled { opacity: .48; cursor: not-allowed; }
+    .profile-box { margin: 20px 0 15px; padding: 13px; border: 1px solid #e6ece3; border-radius: 13px; background: #f7f8ef; }
+    .profile-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .profile-heading strong { font: 700 12px "Space Grotesk", sans-serif; }
+    .profile-heading span { color: var(--muted); font-size: 9px; }
+    .profile-actions { display: flex; gap: 7px; margin-top: 9px; }
+    .profile-input {
+      flex: 1; min-width: 0; height: 37px; padding: 0 10px; border: 1px solid #dce4da; border-radius: 9px;
+      color: var(--ink); background: white; font: 11px "DM Sans", sans-serif; user-select: text;
+    }
+    .profile-button {
+      flex: 0 0 auto; padding: 0 11px; border: 0; border-radius: 9px; color: white;
+      background: #467f6e; font-size: 10px; font-weight: 800; cursor: pointer;
+    }
+    .profile-button:hover { background: #315f53; }
+    .profile-button.secondary { color: #557269; background: #e7eee5; }
+    .profile-status { min-height: 13px; margin-top: 7px; color: #668078; font-size: 9px; line-height: 1.4; }
     .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
     .hangar-heading { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 8px; }
     .hangar-title { color: #729088; font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
@@ -264,6 +304,8 @@
       .plane-cards { grid-template-columns: repeat(2, 1fr); }
       .plane-card { padding: 8px; }
       .plane-card.selected { padding: 7px; }
+      .mystery-box { padding: 11px; }
+      .mystery-button { padding: 0 9px; font-size: 9px; }
       .game-hint { bottom: 18px; font-size: 10px; }
     }
     @media (max-width: 390px) {
@@ -272,6 +314,9 @@
       .upgrade-card { min-height: 155px; }
       .card-icon { width: 31px; height: 31px; font-size: 16px; }
       .card-cost { font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
     }
   </style>
 </head>
@@ -322,6 +367,15 @@
           <span class="path-arrow">→</span>
           <div class="path-step"><span class="step-icon">🔧</span><span class="step-copy"><strong>Upgrade</strong><small>Fly a little farther</small></span></div>
         </div>
+        <div class="profile-box">
+          <div class="profile-heading"><strong>Pilot profile</strong><span>Save progress on this browser</span></div>
+          <div class="profile-actions">
+            <input class="profile-input" id="pilot-name" maxlength="24" autocomplete="nickname" placeholder="Choose a pilot name" aria-label="Pilot name">
+            <button class="profile-button" id="pilot-sign-in">Sign in / save</button>
+            <button class="profile-button secondary hidden" id="pilot-sign-out">Sign out</button>
+          </div>
+          <div class="profile-status" id="profile-status" role="status" aria-live="polite">Guest progress is not saved. Local profiles have no password or cloud sync.</div>
+        </div>
         <button class="primary" id="start">Let’s fly <span>↗</span></button>
         <div class="online-lobby">
           <div class="online-title">Fly with a friend</div>
@@ -342,8 +396,12 @@
       <div class="panel upgrade-panel">
         <div class="upgrade-head"><div><div class="eyebrow" id="upgrade-eyebrow">Flight 1 complete</div><h2 id="upgrade-title">A little tune-up?</h2></div><div class="bank">🪙 <span id="bank">0</span></div></div>
         <p class="upgrade-sub" id="upgrade-sub">Pick one upgrade for the next leg of your journey.</p>
+        <div class="mystery-box">
+          <div class="mystery-copy"><strong>🎁 Mystery hangar box</strong><span>Spend credits for a surprise plane or permanent upgrade.</span><div class="mystery-result" id="mystery-result" role="status" aria-live="polite"></div></div>
+          <button class="mystery-button" id="buy-mystery-box">Open · 45 🪙</button>
+        </div>
         <div class="cards" id="cards"></div>
-        <div class="hangar-heading"><span class="hangar-title">Your fleet · 11 aircraft</span><span class="hangar-hint">Choose a plane for the next flight</span></div>
+        <div class="hangar-heading"><span class="hangar-title">Your fleet · 15 aircraft</span><span class="hangar-hint">Choose a plane for the next flight</span></div>
         <div class="plane-cards" id="plane-cards"></div>
         <div class="upgrade-footer"><button class="reroll" id="reroll">↻ &nbsp;Show different upgrades</button><button class="primary" id="continue">Choose an upgrade <span>→</span></button></div>
       </div>
@@ -387,6 +445,12 @@
   const hint = document.querySelector("#hint");
   const cardsEl = document.querySelector("#cards");
   const planeCardsEl = document.querySelector("#plane-cards");
+  const pilotNameEl = document.querySelector("#pilot-name");
+  const pilotSignInBtn = document.querySelector("#pilot-sign-in");
+  const pilotSignOutBtn = document.querySelector("#pilot-sign-out");
+  const pilotStatusEl = document.querySelector("#profile-status");
+  const mysteryBoxBtn = document.querySelector("#buy-mystery-box");
+  const mysteryResultEl = document.querySelector("#mystery-result");
   const weaponControls = document.querySelector("#weapon-controls");
   const fireButton = document.querySelector("#fire-button");
   const missileButton = document.querySelector("#missile-button");
@@ -421,7 +485,56 @@
     { id: "thunder", name: "Thunderbolt", emoji: "⚡", unlock: 9, ability: "Storm cannons", detail: "The quickest-firing guns in the sky.", speed: 1.12, turn: 1.05, hull: 1, missiles: 1, fire: 1.85, coins: 0, wingSpan: .94, body: 0x4e4b78, wing: 0x8175ba, trim: 0xf2b95f, style: "jet" },
     { id: "fortress", name: "Sky Fortress", emoji: "🏰", unlock: 10, ability: "Flying fortress", detail: "Three extra hull, missiles, and a nuke.", speed: .88, turn: .82, hull: 3, missiles: 2, nukes: 1, fire: 1.15, coins: 0, wingSpan: 1.52, body: 0x62705f, wing: 0x95a47a, trim: 0xe1b86e, style: "biplane" },
     { id: "aurora", name: "Aurora", emoji: "🌌", unlock: 12, ability: "Lucky streak", detail: "Bonus coins with swift, balanced flight.", speed: 1.18, turn: 1.18, hull: 1, missiles: 1, fire: 1.2, coins: 1, wingSpan: 1.12, body: 0x38295f, wing: 0x7657a5, trim: 0x61edc5, style: "glider" },
+    { id: "tempest", name: "Tempest", emoji: "🌪️", unlock: 13, ability: "Storm interceptor", detail: "A fast jet with a reinforced hull and twin missiles.", speed: 1.32, turn: 1.12, hull: 1, missiles: 2, fire: 1.3, coins: 0, wingSpan: .82, body: 0x344c68, wing: 0x83a9b9, trim: 0xf48754, style: "jet" },
+    { id: "skylark", name: "Skylark", emoji: "🪽", unlock: 14, ability: "Wind dancer", detail: "Wide glider wings and extra nimble handling.", speed: 1.1, turn: 1.65, hull: 1, missiles: 0, fire: 1, coins: 1, wingSpan: 1.55, body: 0xf1e7d0, wing: 0xd4a8c2, trim: 0x8a6faf, style: "glider" },
+    { id: "nightjar", name: "Nightjar", emoji: "🌙", unlock: 15, ability: "Shadow striker", detail: "A stealth jet with extra armor and a quick trigger.", speed: 1.24, turn: 1.18, hull: 2, missiles: 1, fire: 1.55, coins: 0, wingSpan: .9, body: 0x292e46, wing: 0x515875, trim: 0x73d7d1, style: "jet" },
+    { id: "starling", name: "Starling", emoji: "✨", unlock: 16, ability: "Golden cargo", detail: "A lucky, quick flyer that collects extra credits.", speed: 1.26, turn: 1.38, hull: 1, missiles: 1, fire: 1.2, coins: 2, wingSpan: 1.08, body: 0xf8e6a9, wing: 0xedbd62, trim: 0xe57d54 },
   ];
+  const mysteryBoxCost = 45;
+  const emptyStats = () => Object.fromEntries(upgrades.map(upgrade => [upgrade.id, 0]));
+  const emptyProgress = () => ({ round: 1, totalCoins: 0, activeAircraftId: "trainer", stats: emptyStats(), ownedAircraft: ["trainer"] });
+  const pilotSaveKey = name => `cloudbound:pilot:${encodeURIComponent(name.trim().toLowerCase().replace(/\s+/g, " "))}`;
+  function normalizeProgress(value) {
+    const data = value && typeof value === "object" ? value : {};
+    const dataStats = data.stats && typeof data.stats === "object" ? data.stats : {};
+    const stats = Object.fromEntries(upgrades.map(upgrade => [
+      upgrade.id,
+      Number.isFinite(dataStats[upgrade.id]) ? clamp(Math.floor(dataStats[upgrade.id]), 0, upgrade.max) : 0,
+    ]));
+    const validPlane = id => aircraft.some(model => model.id === id);
+    const ownedAircraft = Array.isArray(data.ownedAircraft)
+      ? [...new Set(data.ownedAircraft.filter(id => validPlane(id)))]
+      : ["trainer"];
+    if (!ownedAircraft.includes("trainer")) ownedAircraft.push("trainer");
+    return {
+      round: Number.isSafeInteger(data.round) && data.round > 0 ? Math.min(data.round, 10000) : 1,
+      totalCoins: Number.isSafeInteger(data.totalCoins) && data.totalCoins >= 0 ? data.totalCoins : 0,
+      activeAircraftId: validPlane(data.activeAircraftId) ? data.activeAircraftId : "trainer",
+      stats,
+      ownedAircraft,
+    };
+  }
+  let activePilotName = "";
+  let initialProgress = emptyProgress();
+  try {
+    activePilotName = localStorage.getItem("cloudbound:active-pilot") || "";
+    if (activePilotName) {
+      const saved = localStorage.getItem(pilotSaveKey(activePilotName));
+      if (saved) {
+        initialProgress = normalizeProgress(JSON.parse(saved));
+        pilotStatusEl.textContent = `Signed in as ${activePilotName} · progress saved in this browser only.`;
+        pilotNameEl.value = activePilotName;
+        pilotSignInBtn.textContent = "Switch pilot";
+        pilotSignOutBtn.classList.remove("hidden");
+      } else {
+        activePilotName = "";
+      }
+    }
+  } catch (error) {
+    activePilotName = "";
+    pilotStatusEl.textContent = "Could not load local pilot data. Browser storage may be unavailable.";
+    console.error("Could not load pilot progress:", error);
+  }
   const locations = [
     { name: "Cloud Meadow", kind: "meadow", sky: 0x9ed9eb, fog: 0xb5e3ee, ground: 0xd7e9dc, grid: 0xb8d7d0, clouds: [0xffffff, 0xf4f8f1], buildings: [0xd6b998, 0xbcc4b7, 0xd9c9a7, 0xb5c8c4], roof: 0xc97e61, windows: 0xffe6a3, tank: 0x718b68, tracks: 0x3e5047, armor: 0x8da17a, barrel: 0x485a4d, sun: 0xffedbd, accent: 0x718f68 },
     { name: "Sunset Canyon", kind: "desert", sky: 0xe8b879, fog: 0xe8cfaa, ground: 0xc99a63, grid: 0xa87950, clouds: [0xfff4dc, 0xf6d8b3], buildings: [0xd7a46e, 0xc58c58, 0xe2b87c, 0xb97d52], roof: 0x9e5e45, windows: 0xffe1a0, tank: 0x9a8051, tracks: 0x52463a, armor: 0xb69a62, barrel: 0x554637, sun: 0xffdf9a, accent: 0xe2a35f },
@@ -435,8 +548,8 @@
   let state = "welcome";
   let lastTime = 0;
   let elapsed = 0;
-  let round = 1;
-  let totalCoins = 0;
+  let round = initialProgress.round;
+  let totalCoins = initialProgress.totalCoins;
   let roundCoins = 0;
   let dodged = 0;
   let selected = null;
@@ -446,7 +559,8 @@
   let health = 3;
   let facing = -1;
   let cameraMode = "chase";
-  let activeAircraftId = "trainer";
+  let activeAircraftId = initialProgress.activeAircraftId;
+  let mysteryBoxOpening = false;
   let nextObstacle = 1.8;
   let nextCoin = .8;
   let nextEnemy = 3.5;
@@ -454,7 +568,8 @@
   let fireHeld = false;
   let missileAmmo = 3;
   let nukeAmmo = 1;
-  let stats = { engine: 0, wings: 0, magnet: 0, pocket: 0, hull: 0, propeller: 0, cannon: 0, missile: 0, nuke: 0 };
+  let stats = initialProgress.stats;
+  let ownedAircraft = initialProgress.ownedAircraft;
   const player = { x: 0, y: 1, targetX: 0, targetY: 1, invulnerable: 0 };
   let peer = null;
   let connection = null;
@@ -477,6 +592,72 @@
   const groundTanks = [];
   const locationLandmarks = [];
   const blastEffects = [];
+
+  function saveProgress() {
+    if (!activePilotName) return true;
+    const progress = { round, totalCoins, activeAircraftId, stats, ownedAircraft };
+    try {
+      localStorage.setItem(pilotSaveKey(activePilotName), JSON.stringify(progress));
+      localStorage.setItem("cloudbound:active-pilot", activePilotName);
+      return true;
+    } catch (error) {
+      pilotStatusEl.textContent = "Could not save progress. Browser storage may be full or unavailable.";
+      console.error("Could not save pilot progress:", error);
+      return false;
+    }
+  }
+
+  function updatePilotControls(message) {
+    pilotSignInBtn.textContent = activePilotName ? "Switch pilot" : "Sign in / save";
+    pilotSignOutBtn.classList.toggle("hidden", !activePilotName);
+    if (message) pilotStatusEl.textContent = message;
+  }
+
+  function signInPilot() {
+    const name = pilotNameEl.value.trim().replace(/\s+/g, " ");
+    if (!name) {
+      pilotStatusEl.textContent = "Enter a pilot name to sign in and save progress.";
+      pilotNameEl.focus();
+      return;
+    }
+    saveProgress();
+    try {
+      const saved = localStorage.getItem(pilotSaveKey(name));
+      const progress = saved ? normalizeProgress(JSON.parse(saved)) : emptyProgress();
+      activePilotName = name;
+      round = progress.round;
+      totalCoins = progress.totalCoins;
+      activeAircraftId = progress.activeAircraftId;
+      stats = progress.stats;
+      ownedAircraft = progress.ownedAircraft;
+      selected = null;
+      const savedSuccessfully = saveProgress();
+      updatePilotControls(savedSuccessfully
+        ? `Signed in as ${name} · progress is saved in this browser only.`
+        : `Signed in as ${name}, but progress could not be saved in browser storage.`);
+      applyAircraft();
+      updateHud();
+      renderAircraft();
+      updateContinueLabel();
+    } catch (error) {
+      pilotStatusEl.textContent = "Could not open this pilot profile. Browser storage may be unavailable.";
+      console.error("Could not open pilot profile:", error);
+    }
+  }
+
+  function signOutPilot() {
+    const savedSuccessfully = saveProgress();
+    try {
+      localStorage.removeItem("cloudbound:active-pilot");
+      activePilotName = "";
+      updatePilotControls(savedSuccessfully
+        ? "Signed out · guest progress is not saved. Profiles are local to this browser."
+        : "Signed out, but the latest progress could not be saved.");
+    } catch (error) {
+      pilotStatusEl.textContent = "Could not sign out because browser storage is unavailable.";
+      console.error("Could not sign out of pilot profile:", error);
+    }
+  }
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
@@ -754,7 +935,7 @@
   function renderAircraft() {
     const nextFlight = round + 1;
     planeCardsEl.innerHTML = aircraft.map(model => {
-      const locked = nextFlight < model.unlock;
+      const locked = nextFlight < model.unlock && !ownedAircraft.includes(model.id);
       const isSelected = activeAircraftId === model.id;
       return `<button class="plane-card ${isSelected ? "selected" : ""}" data-plane="${model.id}" style="--plane-accent:#${model.trim.toString(16).padStart(6, "0")}" ${locked ? "disabled" : ""} aria-pressed="${isSelected}">
         <span class="plane-emoji">${locked ? "🔒" : model.emoji}</span>
@@ -763,6 +944,7 @@
     }).join("");
     planeCardsEl.querySelectorAll(".plane-card:not(:disabled)").forEach(card => card.addEventListener("click", () => {
       activeAircraftId = card.dataset.plane;
+      saveProgress();
       applyAircraft();
       updateHud();
       renderAircraft();
@@ -827,6 +1009,9 @@
     building.position.set(rand(-30, 30), -9, rand(-155, 38));
     building.userData.speed = rand(.58, .86);
     building.userData.kind = "building";
+    building.userData.width = width;
+    building.userData.depth = depth;
+    building.userData.height = height + .28;
     scene.add(building);
     groundObjects.push(building);
   }
@@ -1621,6 +1806,7 @@
         movingObjects.splice(i, 1);
       }
     }
+    saveProgress();
     updateHud();
   }
 
@@ -1736,6 +1922,7 @@
     enemies.splice(index, 1);
     roundCoins += 2;
     totalCoins += 2;
+    saveProgress();
     updateHud();
   }
 
@@ -1751,6 +1938,7 @@
 
   function updateHud() {
     creditsEl.textContent = String(totalCoins).padStart(3, "0");
+    document.querySelector("#bank").textContent = totalCoins;
     missileCountEl.textContent = String(missileAmmo).padStart(2, "0");
     missileButtonCountEl.textContent = missileAmmo;
     nukeButtonCountEl.textContent = nukeAmmo;
@@ -1772,6 +1960,62 @@
     document.querySelector("#continue").innerHTML = selected
       ? "Install upgrade <span>→</span>"
       : `Fly ${selectedAircraft().name} <span>→</span>`;
+  }
+
+  function updateMysteryBox() {
+    const availablePlanes = aircraft.filter(model => round + 1 < model.unlock && !ownedAircraft.includes(model.id));
+    const availableUpgrades = upgrades.filter(upgrade => stats[upgrade.id] < upgrade.max);
+    mysteryBoxBtn.disabled = mysteryBoxOpening || totalCoins < mysteryBoxCost || (!availablePlanes.length && !availableUpgrades.length);
+    if (!availablePlanes.length && !availableUpgrades.length) {
+      mysteryResultEl.textContent = "All planes and upgrades collected.";
+    } else if (!mysteryResultEl.textContent) {
+      mysteryResultEl.textContent = totalCoins < mysteryBoxCost ? "Earn more credits to open a box." : "A surprise plane or upgrade awaits.";
+    }
+  }
+
+  function openMysteryBox() {
+    if (state !== "upgrade-screen" || mysteryBoxOpening || totalCoins < mysteryBoxCost) return;
+    const availablePlanes = aircraft.filter(model => round + 1 < model.unlock && !ownedAircraft.includes(model.id));
+    const availableUpgrades = upgrades.filter(upgrade => stats[upgrade.id] < upgrade.max);
+    if (!availablePlanes.length && !availableUpgrades.length) {
+      mysteryResultEl.textContent = "All planes and upgrades collected.";
+      updateMysteryBox();
+      return;
+    }
+    mysteryBoxOpening = true;
+    const box = mysteryBoxBtn.closest(".mystery-box");
+    const continueBtn = document.querySelector("#continue");
+    box.classList.add("opening");
+    mysteryResultEl.classList.remove("reveal");
+    mysteryResultEl.textContent = "The box is rattling open…";
+    mysteryBoxBtn.textContent = "📦 Opening…";
+    continueBtn.disabled = true;
+    totalCoins -= mysteryBoxCost;
+    let rewardText;
+    if (availablePlanes.length && (!availableUpgrades.length || Math.random() < .3)) {
+      const reward = availablePlanes[Math.floor(Math.random() * availablePlanes.length)];
+      ownedAircraft.push(reward.id);
+      rewardText = `Unlocked ${reward.name}! Choose it in your hangar.`;
+    } else {
+      const reward = availableUpgrades[Math.floor(Math.random() * availableUpgrades.length)];
+      stats[reward.id]++;
+      rewardText = `Upgrade found: ${reward.name} · level ${stats[reward.id]}.`;
+    }
+    saveProgress();
+    updateHud();
+    renderChoices();
+    renderAircraft();
+    updateContinueLabel();
+    updateMysteryBox();
+    setTimeout(() => {
+      mysteryBoxOpening = false;
+      box.classList.remove("opening");
+      mysteryBoxBtn.textContent = `Open · ${mysteryBoxCost} 🪙`;
+      continueBtn.disabled = false;
+      updateMysteryBox();
+      mysteryResultEl.textContent = rewardText;
+      mysteryResultEl.classList.add("reveal");
+    }, 1450);
   }
 
   function beginRound() {
@@ -1810,12 +2054,15 @@
     const bonus = 14 + Math.floor(elapsed * .35) + stats.pocket * 3;
     const earned = roundCoins + bonus;
     totalCoins += bonus;
+    saveProgress();
     document.querySelector("#bank").textContent = totalCoins;
     document.querySelector("#upgrade-eyebrow").textContent = `Flight ${round} complete · ${locationForFlight(round).name}`;
-    document.querySelector("#upgrade-title").textContent = crashed ? "Soft landing!" : "A little tune-up?";
+    document.querySelector("#upgrade-title").textContent = crashed ? "Crash landing!" : "A little tune-up?";
     document.querySelector("#upgrade-sub").textContent =
       `You brought home ${earned} coins. Flight ${round + 1} heads to ${locationForFlight(round + 1).name}. Choose a plane and upgrade.`;
+    mysteryResultEl.textContent = "";
     createChoices();
+    updateMysteryBox();
     updateHud();
     show("upgrade-screen");
   }
@@ -1839,6 +2086,10 @@
   }
 
   function renderChoices() {
+    if (selected) {
+      const selectedUpgrade = upgrades.find(upgrade => upgrade.id === selected);
+      if (!selectedUpgrade || totalCoins < priceFor(selectedUpgrade)) selected = null;
+    }
     cardsEl.innerHTML = choices.map(upgrade => {
       const price = priceFor(upgrade);
       const maxed = stats[upgrade.id] >= upgrade.max;
@@ -1926,6 +2177,7 @@
             const amount = 1 + model.coins + (stats.propeller && Math.random() < .12 * stats.propeller ? 1 : 0);
             roundCoins += amount;
             totalCoins += amount;
+            saveProgress();
             updateHud();
             scene.remove(object);
             movingObjects.splice(i, 1);
@@ -2059,6 +2311,13 @@
           object.userData.health = 2;
         }
       }
+      if (flying && state === "playing" && !duelMode && object.userData.kind === "building" &&
+          Math.abs(object.position.z) < object.userData.depth / 2 + .85 &&
+          Math.abs(player.x - object.position.x) < object.userData.width / 2 + .85 &&
+          player.y < -9 + object.userData.height + 1.3) {
+        player.invulnerable = 0;
+        damagePlayer(health);
+      }
       if (object.userData.kind === "tank") {
         object.userData.turret.lookAt(new THREE.Vector3(player.x, player.y, 0));
         if (flying && !duelMode && object.position.z < -12 && object.position.z > -84) {
@@ -2130,6 +2389,12 @@
   }
 
   document.querySelector("#start").addEventListener("click", beginRound);
+  pilotSignInBtn.addEventListener("click", signInPilot);
+  pilotNameEl.addEventListener("keydown", event => {
+    if (event.key === "Enter") signInPilot();
+  });
+  pilotSignOutBtn.addEventListener("click", signOutPilot);
+  mysteryBoxBtn.addEventListener("click", openMysteryBox);
   document.querySelector("#host-room").addEventListener("click", () => hostOnlineRoom(false));
   document.querySelector("#join-room").addEventListener("click", () => joinOnlineRoom(false));
   document.querySelector("#host-duel").addEventListener("click", () => hostOnlineRoom(true));
@@ -2148,17 +2413,15 @@
       selected = null;
     }
     round++;
+    saveProgress();
     beginRound();
   });
   document.querySelector("#reroll").addEventListener("click", createChoices);
   document.querySelector("#restart").addEventListener("click", () => {
     if (duelMode) leaveOnlineRoom(false);
-    round = 1;
-    totalCoins = 0;
     duelResult = null;
-    stats = { engine: 0, wings: 0, magnet: 0, pocket: 0, hull: 0, propeller: 0, cannon: 0, missile: 0, nuke: 0 };
-    activeAircraftId = "trainer";
     cameraMode = "chase";
+    saveProgress();
     updateHud();
     beginRound();
   });

@@ -18,6 +18,16 @@ from external CDNs, so gameplay needs an internet connection.
 
 Multiplayer also needs access to PeerJS signaling and WebRTC connections.
 
+Pilot profiles are optional and stored in the current browser's local storage.
+Enter a pilot name on the welcome screen to save credits, flight progress,
+aircraft, and upgrades between visits on that browser. This is a local profile,
+not a password-protected account; it does not sync between devices. Guest
+progress is not saved.
+
+After a flight, spend 45 credits on a mystery hangar box for a random aircraft
+unlock or a permanent upgrade. Boxes shake open before the reward is revealed.
+The hangar now has 15 aircraft, including four additional late-flight planes.
+
 Each flight visits a different location, cycling through seven themed
 landscapes with matching skies, ground colors, and landmarks.
 
@@ -29,6 +39,6 @@ the opposite direction; cannons, missiles, the plane, and chase/cockpit views
 follow the new heading.
 
 Colliding with an obstacle triggers a plane-impact explosion and damages the
-hull; a fatal crash explodes the plane. Missile targets are tracked with an
-on-screen crosshair and progress ring; once locked, press **Q** to launch a
-homing missile at the target.
+hull; hitting a building while flying low causes a fatal crash and plane
+explosion. Missile targets are tracked with an on-screen crosshair and progress
+ring; once locked, press **Q** to launch a homing missile at the target.
