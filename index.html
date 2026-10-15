@@ -594,6 +594,7 @@
   let cameraMode = "chase";
   let gameMode = "flight";
   let tankMode = false;
+  let tankCameraMode = "chase";
   let tankAimX = 0;
   let tankAimY = 0;
   let tankFireCooldown = 0;
@@ -2047,7 +2048,7 @@
     state = name;
     screens.forEach(id => document.querySelector("#" + id).classList.toggle("hidden", id !== name));
     pauseBtn.classList.toggle("hidden", name !== "playing");
-    viewToggle.classList.toggle("hidden", name !== "playing" || tankMode);
+    viewToggle.classList.toggle("hidden", name !== "playing");
     hint.classList.toggle("hidden", name !== "playing");
     weaponControls.classList.toggle("hidden", name !== "playing");
     tankScoreEl.classList.toggle("hidden", name !== "playing" || !tankMode);
@@ -2057,7 +2058,7 @@
     nukeButton.classList.toggle("hidden", tankMode);
     turnButton.classList.toggle("hidden", tankMode || !duelMode);
     hintTextEl.textContent = tankMode
-      ? "drive · aim with mouse · F fire · 60-second defense"
+      ? "drive · aim with mouse · F fire · V gunner view · 60-second defense"
       : "steer · F fire · Q missile · N nuke · R turn around · V view";
     fireButtonLabelEl.textContent = tankMode ? "F · SHOOT" : "F · FIRE";
     if (name !== "playing") fireHeld = false;
@@ -2081,7 +2082,9 @@
     document.querySelector("#location-name").textContent = tankMode
       ? `${locationForFlight(round).name} · Tank range`
       : locationForFlight(round).name;
-    viewToggle.textContent = `${cameraMode === "chase" ? "CHASE" : "COCKPIT"} VIEW · V`;
+    viewToggle.textContent = tankMode
+      ? `${tankCameraMode === "chase" ? "CHASE" : "GUNNER"} VIEW · V`
+      : `${cameraMode === "chase" ? "CHASE" : "COCKPIT"} VIEW · V`;
     document.querySelector("#round-pips").innerHTML = Array.from(
       { length: 5 },
       (_, i) => `<i class="${i < Math.min(round, 5) ? "on" : ""}"></i>`
@@ -2182,6 +2185,7 @@
     tankKills = 0;
     tankFireCooldown = 0;
     tankSpawnTimer = .7;
+    tankCameraMode = "chase";
     tankAimNdc.set(0, 0);
     fireHeld = false;
     plane.visible = false;
@@ -2255,9 +2259,15 @@
     playerTank.position.x = clamp(playerTank.position.x + dx * 11 * dt, -24, 24);
     playerTank.position.z = clamp(playerTank.position.z + dz * 8 * dt, 1, 15);
 
-    camera.position.lerp(new THREE.Vector3(playerTank.position.x, -1.2, playerTank.position.z + 12), Math.min(1, dt * 4));
     camera.up.set(0, 1, 0);
-    camera.lookAt(playerTank.position.x, -2.1, playerTank.position.z - 36);
+    if (tankCameraMode === "chase") {
+      camera.position.lerp(new THREE.Vector3(playerTank.position.x, -1.2, playerTank.position.z + 12), Math.min(1, dt * 4));
+      camera.lookAt(playerTank.position.x, -2.1, playerTank.position.z - 36);
+    } else {
+      const gunnerPosition = playerTankTurret.localToWorld(new THREE.Vector3(0, .48, -.12));
+      camera.position.lerp(gunnerPosition, Math.min(1, dt * 8));
+      camera.lookAt(getTankAimPoint());
+    }
     camera.updateMatrixWorld();
     const aimPoint = getTankAimPoint();
     tankAimX = aimPoint.x;
@@ -2680,17 +2690,14 @@
     plane.visible = !tankMode && (cameraMode === "cockpit" ? false : !flicker);
     cockpitInterior.visible = !tankMode && cameraMode === "cockpit";
     playerTank.visible = tankMode;
-    if (tankMode) {
-      camera.up.set(0, 1, 0);
-      camera.lookAt(playerTank.position.x, -2.1, playerTank.position.z - 36);
-    } else if (cameraMode === "cockpit") {
+    if (!tankMode && cameraMode === "cockpit") {
       const cockpitPosition = plane.localToWorld(new THREE.Vector3(0, .9, -.9));
       const viewTarget = plane.localToWorld(new THREE.Vector3(0, .45, -42));
       const up = plane.localToWorld(new THREE.Vector3(0, 1, 0)).sub(plane.position).normalize();
       camera.position.lerp(cockpitPosition, Math.min(1, dt * 9));
       camera.up.copy(up);
       camera.lookAt(viewTarget);
-    } else {
+    } else if (!tankMode) {
       const chasePosition = new THREE.Vector3(player.x * .55, player.y + 4.2, -facing * 11);
       camera.position.lerp(chasePosition, Math.min(1, dt * 1.8));
       camera.up.set(0, 1, 0);
@@ -2762,7 +2769,12 @@
   pauseBtn.addEventListener("click", () => { if (state === "playing") show("pause-screen"); });
   document.querySelector("#resume").addEventListener("click", () => show("playing"));
   function toggleCamera() {
-    if (state !== "playing" || tankMode) return;
+    if (state !== "playing") return;
+    if (tankMode) {
+      tankCameraMode = tankCameraMode === "chase" ? "gunner" : "chase";
+      updateHud();
+      return;
+    }
     cameraMode = cameraMode === "chase" ? "cockpit" : "chase";
     updateHud();
   }

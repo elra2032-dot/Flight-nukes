@@ -37,6 +37,8 @@ on-screen fire button, and move with **W / A / S / D** or the arrow keys.
 Aircraft kills earn credits; incoming aircraft damage the tank, and each
 defense round lasts one minute. The scene uses higher-detail shadows, textured
 terrain, and a more detailed player tank.
+Press **V** or use the camera button to switch between the chase view and a
+first-person gunner view from the turret.
 
 Online play supports shared flight rooms and 1v1 duels. One player hosts a
 duel and shares the room code; the other joins with that code. In a duel,
