@@ -2182,7 +2182,7 @@
     tankKills = 0;
     tankFireCooldown = 0;
     tankSpawnTimer = .7;
-    tankAimNdc.set(0, .08);
+    tankAimNdc.set(0, 0);
     fireHeld = false;
     plane.visible = false;
     cockpitInterior.visible = false;
@@ -2200,18 +2200,33 @@
     updateHud();
   }
 
-  function fireTankGun() {
-    if (!playerTankTurret || tankFireCooldown > 0) return;
-    const raycaster = new THREE.Raycaster();
+  function getTankAimPoint() {
     camera.updateMatrixWorld();
+    const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(tankAimNdc, camera);
     const aimPoint = new THREE.Vector3();
     const aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 2.5);
-    if (!raycaster.ray.intersectPlane(aimPlane, aimPoint)) {
-      aimPoint.set(playerTank.position.x, -2.5, -50);
+    const planeHit = raycaster.ray.intersectPlane(aimPlane, aimPoint);
+    const aimDistance = planeHit
+      ? clamp(raycaster.ray.origin.distanceTo(aimPoint), 18, 300)
+      : 100;
+    if (!planeHit || raycaster.ray.origin.distanceTo(aimPoint) !== aimDistance) {
+      raycaster.ray.at(aimDistance, aimPoint);
     }
-    aimPoint.x = clamp(aimPoint.x, -32, 32);
-    aimPoint.z = clamp(aimPoint.z, -140, 25);
+    return aimPoint;
+  }
+
+  function positionTankReticle(aimPoint) {
+    const screenPoint = aimPoint.clone().project(camera);
+    const gameRect = document.querySelector("#game").getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    tankReticleEl.style.left = `${canvasRect.left - gameRect.left + (screenPoint.x + 1) * canvasRect.width / 2}px`;
+    tankReticleEl.style.top = `${canvasRect.top - gameRect.top + (1 - screenPoint.y) * canvasRect.height / 2}px`;
+  }
+
+  function fireTankGun() {
+    if (!playerTankTurret || tankFireCooldown > 0) return;
+    const aimPoint = getTankAimPoint();
     playerTankTurret.lookAt(aimPoint);
     playerTankTurret.rotateY(Math.PI);
     const origin = playerTankTurret.localToWorld(new THREE.Vector3(0, .03, -1.55));
@@ -2240,25 +2255,20 @@
     const dz = (keys.has("s") || keys.has("arrowdown") ? 1 : 0) - (keys.has("w") || keys.has("arrowup") ? 1 : 0);
     playerTank.position.x = clamp(playerTank.position.x + dx * 11 * dt, -24, 24);
     playerTank.position.z = clamp(playerTank.position.z + dz * 8 * dt, 1, 15);
-    if (fireHeld) fireTankGun();
 
     camera.position.lerp(new THREE.Vector3(playerTank.position.x, -1.2, playerTank.position.z + 12), Math.min(1, dt * 4));
     camera.up.set(0, 1, 0);
     camera.lookAt(playerTank.position.x, -2.1, playerTank.position.z - 36);
     camera.updateMatrixWorld();
-    const aimRay = new THREE.Raycaster();
-    aimRay.setFromCamera(tankAimNdc, camera);
-    const aimPoint = new THREE.Vector3();
-    if (aimRay.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 2.5), aimPoint)) {
-      tankAimX = aimPoint.x;
-      tankAimY = aimPoint.z;
-    }
-    tankAimX = clamp(tankAimX, -32, 32);
-    tankAimY = clamp(tankAimY, -140, 24);
+    const aimPoint = getTankAimPoint();
+    tankAimX = aimPoint.x;
+    tankAimY = aimPoint.z;
+    positionTankReticle(aimPoint);
     if (playerTankTurret) {
-      playerTankTurret.lookAt(new THREE.Vector3(tankAimX, -2.5, tankAimY));
+      playerTankTurret.lookAt(aimPoint);
       playerTankTurret.rotateY(Math.PI);
     }
+    if (fireHeld) fireTankGun();
 
     for (let i = enemies.length - 1; i >= 0; i--) {
       const enemy = enemies[i];
@@ -2806,9 +2816,11 @@
   });
   canvas.addEventListener("pointermove", event => {
     if (tankMode) {
-      tankAimNdc.set((event.clientX / innerWidth) * 2 - 1, 1 - (event.clientY / innerHeight) * 2);
-      tankReticleEl.style.left = `${event.clientX}px`;
-      tankReticleEl.style.top = `${event.clientY}px`;
+      const bounds = canvas.getBoundingClientRect();
+      tankAimNdc.set(
+        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+        1 - ((event.clientY - bounds.top) / bounds.height) * 2
+      );
       return;
     }
     if (!pointerDown || state !== "playing") return;
