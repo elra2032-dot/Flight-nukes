@@ -31,6 +31,13 @@ The hangar now has 15 aircraft, including four additional late-flight planes.
 Each flight visits a different location, cycling through seven themed
 landscapes with matching skies, ground colors, and landmarks.
 
+Choose **Tank defense** on the welcome screen to drive a tank and defend the
+range from incoming aircraft. Aim with the mouse, fire with **F** or the
+on-screen fire button, and move with **W / A / S / D** or the arrow keys.
+Aircraft kills earn credits; incoming aircraft damage the tank, and each
+defense round lasts one minute. The scene uses higher-detail shadows, textured
+terrain, and a more detailed player tank.
+
 Online play supports shared flight rooms and 1v1 duels. One player hosts a
 duel and shares the room code; the other joins with that code. In a duel,
 cannon and missile hits reduce the opponent's hull until one pilot is shot

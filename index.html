@@ -55,6 +55,17 @@
     .hud-value { margin-top: 1px; font: 600 14px "DM Mono", monospace; }
     .hud-icon { font-size: 17px; }
     .round-hud { min-width: 136px; }
+    .mode-chip {
+      padding: 8px 11px; border: 1px solid rgba(24,51,67,.12); border-radius: 11px;
+      color: #355a58; background: rgba(255,253,246,.82); font: 700 9px "DM Mono", monospace;
+    }
+    .mode-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: -11px 0 15px; }
+    .mode-button {
+      min-height: 42px; border: 1px solid #dfe9df; border-radius: 11px;
+      color: #294957; background: #f5f8f1; font-size: 11px; font-weight: 800; cursor: pointer;
+    }
+    .mode-button:hover { border-color: #efae79; background: #fff9ee; transform: translateY(-1px); }
+    .mode-button.active { border-color: #ed9c70; color: #8f4d37; background: #fff2e7; }
     .location-banner {
       position: absolute; z-index: 2; top: 83px; right: 32px; display: flex; align-items: center; gap: 6px;
       padding: 7px 11px; border: 1px solid rgba(24,51,67,.12); border-radius: 10px;
@@ -93,6 +104,16 @@
     }
     .target-lock[data-locked="true"] .target-lock-label { color: #b5ffdb; }
     .target-lock[data-offscreen="true"] { color: #ffd58b; }
+    .tank-reticle {
+      position: absolute; z-index: 2; left: 50%; top: 50%; width: 46px; height: 46px;
+      transform: translate(-50%, -50%); border: 1px solid rgba(255,239,190,.9); border-radius: 50%;
+      box-shadow: 0 1px 5px rgba(15,34,40,.6); pointer-events: none;
+    }
+    .tank-reticle::before, .tank-reticle::after {
+      content: ""; position: absolute; left: 50%; top: 50%; background: #fff0c4; transform: translate(-50%,-50%);
+    }
+    .tank-reticle::before { width: 64px; height: 1px; }
+    .tank-reticle::after { width: 1px; height: 64px; }
     .key {
       display: inline-grid; place-items: center; width: 23px; height: 23px;
       border: 1px solid rgba(24,51,67,.22); border-bottom-width: 2px;
@@ -331,7 +352,8 @@
         <div class="hud-chip"><span class="hud-icon">🚀</span><div><div class="hud-label">Missiles</div><div class="hud-value" id="missiles">03</div></div></div>
         <div class="hud-chip"><span class="hud-icon">🛡️</span><div><div class="hud-label">Hull</div><div class="hud-value" id="health">3</div></div></div>
         <div class="hud-chip hidden" id="duel-hud"><span class="hud-icon">⚔️</span><div><div class="hud-label">Rival hull</div><div class="hud-value" id="opponent-health">3</div></div></div>
-        <div class="hud-chip round-hud"><span class="hud-icon">☀</span><div><div class="hud-label">Flight</div><div class="hud-value"><span id="round-number">1</span><div class="round-pips" id="round-pips"><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div></div></div>
+        <div class="mode-chip hidden" id="tank-score">TANK DEFENSE · 0</div>
+        <div class="hud-chip round-hud"><span class="hud-icon">☀</span><div><div class="hud-label" id="round-label">Flight</div><div class="hud-value"><span id="round-number">1</span><div class="round-pips" id="round-pips"><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div></div></div>
         <button class="online-indicator hidden" id="online-indicator" aria-label="Disconnect from online room">● ONLINE · LEAVE</button>
         <button class="view-button hidden" id="view-toggle" aria-label="Switch camera view">CHASE VIEW · V</button>
         <button class="pause-button hidden" id="pause" aria-label="Pause flight">Ⅱ</button>
@@ -340,7 +362,7 @@
     <div class="location-banner"><span aria-hidden="true">📍</span><span id="location-name">Cloud Meadow</span></div>
     <div class="game-hint hidden" id="hint">
       <span class="hint-keys"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></span>
-      <span>steer</span><span style="opacity:.4">·</span><span>F fire</span><span style="opacity:.4">·</span><span>Q missile</span><span style="opacity:.4">·</span><span>N nuke</span><span style="opacity:.4">·</span><span>R turn around</span><span style="opacity:.4">·</span><span>V view</span>
+      <span id="hint-text">steer · F fire · Q missile · N nuke · R turn around · V view</span>
     </div>
     <div class="target-lock hidden" id="target-lock" data-locked="false" data-offscreen="false" role="status" aria-live="polite">
       <svg viewBox="0 0 80 80" aria-hidden="true">
@@ -349,6 +371,7 @@
       </svg>
       <span class="target-lock-label" id="target-lock-label">ACQUIRING</span>
     </div>
+    <div class="tank-reticle hidden" id="tank-reticle" aria-hidden="true"></div>
     <div class="weapon-controls hidden" id="weapon-controls">
       <button class="weapon-button fire" id="fire-button" aria-label="Fire cannons with F">✦<small>F · FIRE</small></button>
       <button class="weapon-button" id="missile-button" aria-label="Launch homing missile with Q">🚀 <span id="missile-count">3</span><small>Q · MISSILE</small></button>
@@ -367,6 +390,11 @@
           <span class="path-arrow">→</span>
           <div class="path-step"><span class="step-icon">🔧</span><span class="step-copy"><strong>Upgrade</strong><small>Fly a little farther</small></span></div>
         </div>
+        <div class="mode-actions">
+          <button class="mode-button active" id="flight-mode">✈ Flight campaign</button>
+          <button class="mode-button" id="tank-mode">🛡 Tank defense</button>
+        </div>
+        <p class="online-description" id="mode-description" style="margin:-8px 0 13px">Fly, collect credits, and upgrade your aircraft between flights.</p>
         <div class="profile-box">
           <div class="profile-heading"><strong>Pilot profile</strong><span>Save progress on this browser</span></div>
           <div class="profile-actions">
@@ -460,6 +488,11 @@
   const targetLockEl = document.querySelector("#target-lock");
   const targetLockRingEl = document.querySelector("#target-lock-ring");
   const targetLockLabelEl = document.querySelector("#target-lock-label");
+  const tankReticleEl = document.querySelector("#tank-reticle");
+  const tankScoreEl = document.querySelector("#tank-score");
+  const hintTextEl = document.querySelector("#hint-text");
+  const modeDescriptionEl = document.querySelector("#mode-description");
+  const fireButtonLabelEl = document.querySelector("#fire-button").querySelector("small");
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const rand = (min, max) => min + Math.random() * (max - min);
   const upgrades = [
@@ -559,6 +592,17 @@
   let health = 3;
   let facing = -1;
   let cameraMode = "chase";
+  let gameMode = "flight";
+  let tankMode = false;
+  let tankAimX = 0;
+  let tankAimY = 0;
+  let tankFireCooldown = 0;
+  let tankSpawnTimer = 0;
+  let tankKills = 0;
+  let tankHealth = 5;
+  let tankAimNdc = new THREE.Vector2(0, .08);
+  let playerTank = null;
+  let playerTankTurret = null;
   let activeAircraftId = initialProgress.activeAircraftId;
   let mysteryBoxOpening = false;
   let nextObstacle = 1.8;
@@ -660,13 +704,14 @@
   }
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6));
   renderer.setSize(innerWidth, innerHeight, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.16;
+  renderer.toneMappingExposure = 1.08;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = true;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x9ed9eb);
@@ -767,18 +812,18 @@
   cockpitInterior.visible = false;
   camera.add(cockpitInterior);
 
-  scene.add(new THREE.HemisphereLight(0xe7f8ff, 0xb9b7a0, 2.35));
-  const sunLight = new THREE.DirectionalLight(0xfff1d2, 3.6);
+  scene.add(new THREE.HemisphereLight(0xd8efff, 0x737663, 1.75));
+  const sunLight = new THREE.DirectionalLight(0xfff0d8, 3.15);
   sunLight.position.set(-9, 18, 9);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(1536, 1536);
+  sunLight.shadow.mapSize.set(2048, 2048);
   sunLight.shadow.camera.left = -24;
   sunLight.shadow.camera.right = 24;
   sunLight.shadow.camera.top = 24;
   sunLight.shadow.camera.bottom = -24;
   scene.add(sunLight);
-  scene.add(new THREE.AmbientLight(0xffffff, .38));
-  const skyFill = new THREE.DirectionalLight(0xaadfff, 1.05);
+  scene.add(new THREE.AmbientLight(0xc7d9e2, .28));
+  const skyFill = new THREE.DirectionalLight(0xaadfff, 1.2);
   skyFill.position.set(12, 8, -18);
   scene.add(skyFill);
 
@@ -789,9 +834,33 @@
   sun.position.set(30, 26, -105);
   scene.add(sun);
 
+  const groundCanvas = document.createElement("canvas");
+  groundCanvas.width = groundCanvas.height = 512;
+  const groundContext = groundCanvas.getContext("2d");
+  groundContext.fillStyle = "#fff";
+  groundContext.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 16000; i++) {
+    const shade = Math.floor(rand(90, 225));
+    groundContext.fillStyle = `rgba(${shade},${shade},${shade},${rand(.025, .12)})`;
+    groundContext.fillRect(rand(0, 512), rand(0, 512), rand(1, 4), rand(1, 4));
+  }
+  for (let i = 0; i < 18; i++) {
+    groundContext.strokeStyle = `rgba(70,76,65,${rand(.04, .1)})`;
+    groundContext.lineWidth = rand(1, 3);
+    groundContext.beginPath();
+    const x = rand(0, 512);
+    groundContext.moveTo(x, 0);
+    groundContext.lineTo(x + rand(-18, 18), 512);
+    groundContext.stroke();
+  }
+  const groundTexture = new THREE.CanvasTexture(groundCanvas);
+  groundTexture.colorSpace = THREE.SRGBColorSpace;
+  groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
+  groundTexture.repeat.set(24, 24);
+  groundTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(500, 500),
-    new THREE.MeshStandardMaterial({ color: 0xd7e9dc, roughness: 1, metalness: 0 })
+    new THREE.MeshStandardMaterial({ color: 0xd7e9dc, map: groundTexture, roughness: .93, metalness: .02 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, -9, -100);
@@ -1062,6 +1131,54 @@
     groundTanks.push(tank);
   }
   for (let i = 0; i < 8; i++) addGroundTank();
+
+  function createPlayerTank() {
+    const body = new THREE.Group();
+    for (const side of [-1, 1]) {
+      const track = new THREE.Mesh(trackGeometry, tankTrackMaterial);
+      track.position.set(side * .82, .2, 0);
+      track.castShadow = true;
+      body.add(track);
+      for (let wheelIndex = -1; wheelIndex <= 1; wheelIndex++) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, .48, 14), tankMetalMaterial);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(side * .88, .22, wheelIndex * .67);
+        wheel.castShadow = true;
+        body.add(wheel);
+      }
+    }
+    const hull = new THREE.Mesh(tankHullGeometry, tankBodyMaterial);
+    hull.position.y = .45;
+    hull.castShadow = true;
+    hull.receiveShadow = true;
+    body.add(hull);
+    const glacis = new THREE.Mesh(new THREE.BoxGeometry(1.48, .25, .72), tankMetalMaterial);
+    glacis.position.set(0, .73, -.72);
+    glacis.rotation.x = -.18;
+    body.add(glacis);
+    const turret = new THREE.Group();
+    turret.position.set(0, .82, 0);
+    const turretBase = new THREE.Mesh(turretGeometry, tankMetalMaterial);
+    turretBase.castShadow = true;
+    turret.add(turretBase);
+    const barrel = new THREE.Mesh(tankCannonGeometry, tankBarrelMaterial);
+    barrel.rotation.x = -Math.PI / 2;
+    barrel.position.set(0, .03, -.72);
+    barrel.castShadow = true;
+    turret.add(barrel);
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(.17, .14, .2, 10), tankBarrelMaterial);
+    muzzle.rotation.x = -Math.PI / 2;
+    muzzle.position.set(0, .03, -1.38);
+    turret.add(muzzle);
+    const hatch = new THREE.Mesh(new THREE.CylinderGeometry(.26, .28, .12, 12), tankBodyMaterial);
+    hatch.position.set(.28, .28, .12);
+    turret.add(hatch);
+    body.add(turret);
+    body.position.set(0, -8.88, 8);
+    scene.add(body);
+    return { body, turret };
+  }
+  ({ body: playerTank, turret: playerTankTurret } = createPlayerTank());
 
   function addWing(group, scale = 1, color = 0xffedc7) {
     const shape = new THREE.Shape();
@@ -1681,7 +1798,7 @@
   }
 
   function updateMissileLock(dt) {
-    const target = state === "playing" ? findMissileTarget() : null;
+    const target = state === "playing" && !tankMode ? findMissileTarget() : null;
     if (target !== missileLockTarget) {
       missileLockTarget = target;
       missileLockProgress = 0;
@@ -1713,7 +1830,7 @@
   }
 
   function launchPlayerMissile() {
-    if (state !== "playing" || missileAmmo <= 0) return;
+    if (state !== "playing" || tankMode || missileAmmo <= 0) return;
     missileAmmo--;
     updateHud();
     const lockedTarget = missileLockProgress >= 1 && missileLockTarget === findMissileTarget()
@@ -1811,7 +1928,7 @@
   }
 
   function launchNuke() {
-    if (state !== "playing" || nukeAmmo <= 0) return;
+    if (state !== "playing" || tankMode || nukeAmmo <= 0) return;
     nukeAmmo--;
     updateHud();
     addProjectile(
@@ -1930,9 +2047,19 @@
     state = name;
     screens.forEach(id => document.querySelector("#" + id).classList.toggle("hidden", id !== name));
     pauseBtn.classList.toggle("hidden", name !== "playing");
-    viewToggle.classList.toggle("hidden", name !== "playing");
+    viewToggle.classList.toggle("hidden", name !== "playing" || tankMode);
     hint.classList.toggle("hidden", name !== "playing");
     weaponControls.classList.toggle("hidden", name !== "playing");
+    tankScoreEl.classList.toggle("hidden", name !== "playing" || !tankMode);
+    tankReticleEl.classList.toggle("hidden", name !== "playing" || !tankMode);
+    targetLockEl.classList.toggle("hidden", tankMode);
+    document.querySelector("#missile-button").classList.toggle("hidden", tankMode);
+    nukeButton.classList.toggle("hidden", tankMode);
+    turnButton.classList.toggle("hidden", tankMode || !duelMode);
+    hintTextEl.textContent = tankMode
+      ? "drive · aim with mouse · F fire · 60-second defense"
+      : "steer · F fire · Q missile · N nuke · R turn around · V view";
+    fireButtonLabelEl.textContent = tankMode ? "F · SHOOT" : "F · FIRE";
     if (name !== "playing") fireHeld = false;
   }
 
@@ -1942,13 +2069,18 @@
     missileCountEl.textContent = String(missileAmmo).padStart(2, "0");
     missileButtonCountEl.textContent = missileAmmo;
     nukeButtonCountEl.textContent = nukeAmmo;
-    healthEl.textContent = health;
+    healthEl.textContent = tankMode ? tankHealth : health;
     duelHud.classList.toggle("hidden", !duelMode);
     turnButton.classList.toggle("hidden", !duelMode);
     turnLabel.textContent = facing === -1 ? "R · TURN" : "R · RETURN";
     turnButton.setAttribute("aria-label", facing === -1 ? "Turn around with R" : "Face forward with R");
-    roundEl.textContent = round;
-    document.querySelector("#location-name").textContent = locationForFlight(round).name;
+    roundEl.textContent = tankMode ? String(tankKills) : round;
+    document.querySelector("#round-label").textContent = tankMode ? "Planes down" : "Flight";
+    document.querySelector("#round-pips").classList.toggle("hidden", tankMode);
+    tankScoreEl.textContent = `TANK DEFENSE · ${tankKills}`;
+    document.querySelector("#location-name").textContent = tankMode
+      ? `${locationForFlight(round).name} · Tank range`
+      : locationForFlight(round).name;
     viewToggle.textContent = `${cameraMode === "chase" ? "CHASE" : "COCKPIT"} VIEW · V`;
     document.querySelector("#round-pips").innerHTML = Array.from(
       { length: 5 },
@@ -2018,7 +2150,174 @@
     }, 1450);
   }
 
+  function damageTank(amount, position) {
+    if (state !== "playing" || !tankMode) return;
+    tankHealth = Math.max(0, tankHealth - amount);
+    makeEnemyExplosion(position || playerTank.position.clone().add(new THREE.Vector3(0, 1, 0)), 0x8a6a42);
+    updateHud();
+    if (tankHealth <= 0) endTankBattle();
+  }
+
+  function endTankBattle() {
+    if (state !== "playing" || !tankMode) return;
+    fireHeld = false;
+    saveProgress();
+    document.querySelector("#upgrade-eyebrow").textContent = "TANK DEFENSE";
+    document.querySelector("#upgrade-title").textContent = tankHealth > 0 ? "Defense complete!" : "Tank knocked out!";
+    document.querySelector("#upgrade-sub").textContent =
+      `You downed ${tankKills} aircraft and earned ${tankKills * 2} credits. ${tankHealth > 0 ? "Excellent defense!" : "The air raid got through."}`;
+    document.querySelector("#final-summary").innerHTML =
+      `<span>PLANES DOWN <b>${tankKills}</b></span><span>TANK HULL <b>${tankHealth}/5</b></span><span>TIME <b>${Math.floor(elapsed)}s</b></span>`;
+    document.querySelector("#restart").innerHTML = "Defend again <span>↗</span>";
+    show("gameover-screen");
+  }
+
+  function startTankMode() {
+    if (duelMode) leaveOnlineRoom(false);
+    tankMode = true;
+    gameMode = "tank";
+    duelMode = false;
+    elapsed = 0;
+    tankHealth = 5;
+    tankKills = 0;
+    tankFireCooldown = 0;
+    tankSpawnTimer = .7;
+    tankAimNdc.set(0, .08);
+    fireHeld = false;
+    plane.visible = false;
+    cockpitInterior.visible = false;
+    playerTank.visible = true;
+    playerTank.position.set(0, -8.88, 8);
+    enemies.forEach(enemy => scene.remove(enemy));
+    enemies.length = 0;
+    projectiles.forEach(projectile => scene.remove(projectile.mesh));
+    projectiles.length = 0;
+    blastEffects.forEach(effect => scene.remove(effect.group));
+    blastEffects.length = 0;
+    applyLocation();
+    cameraMode = "chase";
+    show("playing");
+    updateHud();
+  }
+
+  function fireTankGun() {
+    if (!playerTankTurret || tankFireCooldown > 0) return;
+    const raycaster = new THREE.Raycaster();
+    camera.updateMatrixWorld();
+    raycaster.setFromCamera(tankAimNdc, camera);
+    const aimPoint = new THREE.Vector3();
+    const aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 2.5);
+    if (!raycaster.ray.intersectPlane(aimPlane, aimPoint)) {
+      aimPoint.set(playerTank.position.x, -2.5, -50);
+    }
+    aimPoint.x = clamp(aimPoint.x, -32, 32);
+    aimPoint.z = clamp(aimPoint.z, -140, 25);
+    playerTankTurret.lookAt(aimPoint);
+    playerTankTurret.rotateY(Math.PI);
+    const origin = playerTankTurret.localToWorld(new THREE.Vector3(0, .03, -1.55));
+    addProjectile("tankBullet", origin, aimPoint.sub(origin), 92);
+    tankFireCooldown = .38;
+  }
+
+  function updateTankBattle(dt, timestamp) {
+    elapsed += dt;
+    tankFireCooldown -= dt;
+    tankSpawnTimer -= dt;
+    if (elapsed >= 60) {
+      endTankBattle();
+      return;
+    }
+    if (tankSpawnTimer <= 0) {
+      addEnemy();
+      const enemy = enemies[enemies.length - 1];
+      enemy.position.y = rand(-6.2, -3.2);
+      enemy.userData.tankAltitude = enemy.position.y;
+      enemy.userData.tankSpeed = rand(12, 18);
+      enemy.userData.fireTimer = rand(2.2, 3.6);
+      tankSpawnTimer = rand(1.35, 2.05);
+    }
+    const dx = (keys.has("d") || keys.has("arrowright") ? 1 : 0) - (keys.has("a") || keys.has("arrowleft") ? 1 : 0);
+    const dz = (keys.has("s") || keys.has("arrowdown") ? 1 : 0) - (keys.has("w") || keys.has("arrowup") ? 1 : 0);
+    playerTank.position.x = clamp(playerTank.position.x + dx * 11 * dt, -24, 24);
+    playerTank.position.z = clamp(playerTank.position.z + dz * 8 * dt, 1, 15);
+    if (fireHeld) fireTankGun();
+
+    camera.position.lerp(new THREE.Vector3(playerTank.position.x, -1.2, playerTank.position.z + 12), Math.min(1, dt * 4));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(playerTank.position.x, -2.1, playerTank.position.z - 36);
+    camera.updateMatrixWorld();
+    const aimRay = new THREE.Raycaster();
+    aimRay.setFromCamera(tankAimNdc, camera);
+    const aimPoint = new THREE.Vector3();
+    if (aimRay.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 2.5), aimPoint)) {
+      tankAimX = aimPoint.x;
+      tankAimY = aimPoint.z;
+    }
+    tankAimX = clamp(tankAimX, -32, 32);
+    tankAimY = clamp(tankAimY, -140, 24);
+    if (playerTankTurret) {
+      playerTankTurret.lookAt(new THREE.Vector3(tankAimX, -2.5, tankAimY));
+      playerTankTurret.rotateY(Math.PI);
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy = enemies[i];
+      enemy.position.z += enemy.userData.tankSpeed * dt;
+      enemy.position.x += Math.sin(timestamp * .0016 + enemy.userData.wobble) * dt * 2.3;
+      enemy.position.y = enemy.userData.tankAltitude + Math.sin(timestamp * .002 + enemy.userData.wobble) * .65;
+      enemy.rotation.z = Math.sin(timestamp * .0015 + enemy.userData.wobble) * .1;
+      if (Math.abs(enemy.position.z - playerTank.position.z) < 1.8 &&
+          Math.abs(enemy.position.x - playerTank.position.x) < 2.1 &&
+          Math.abs(enemy.position.y + 8.1) < 2.3) {
+        makeEnemyExplosion(enemy.position, enemy.userData.bodyColor);
+        scene.remove(enemy);
+        enemies.splice(i, 1);
+        damageTank(1);
+        if (state !== "playing") return;
+      } else if (enemy.position.z > 24) {
+        scene.remove(enemy);
+        enemies.splice(i, 1);
+      }
+    }
+
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const shot = projectiles[i];
+      shot.age += dt;
+      const from = shot.mesh.position.clone();
+      shot.mesh.position.addScaledVector(shot.velocity, dt);
+      if (shot.type === "tankBullet") {
+        const segment = shot.mesh.position.clone().sub(from);
+        const lengthSq = segment.lengthSq();
+        let hitIndex = -1;
+        for (let enemyIndex = enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
+          const enemy = enemies[enemyIndex];
+          const t = lengthSq ? clamp(enemy.position.clone().sub(from).dot(segment) / lengthSq, 0, 1) : 0;
+          if (from.clone().addScaledVector(segment, t).distanceTo(enemy.position) < 1.35) {
+            hitIndex = enemyIndex;
+            break;
+          }
+        }
+        if (hitIndex >= 0) {
+          tankKills++;
+          roundCoins += 2;
+          totalCoins += 2;
+          destroyEnemy(hitIndex);
+          saveProgress();
+          updateHud();
+          removeProjectile(i);
+          continue;
+        }
+      }
+      if (shot.age > 4 || Math.abs(shot.mesh.position.x) > 60 ||
+          Math.abs(shot.mesh.position.y) > 40 || Math.abs(shot.mesh.position.z) > 170) removeProjectile(i);
+    }
+    updateBlastEffects(dt);
+  }
+
   function beginRound() {
+    tankMode = false;
+    gameMode = "flight";
+    playerTank.visible = false;
     elapsed = 0;
     roundCoins = 0;
     dodged = 0;
@@ -2120,10 +2419,11 @@
   function tick(timestamp) {
     const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, .05) : 0;
     lastTime = timestamp;
-    const flying = state === "playing";
+    const flying = state === "playing" && !tankMode;
     const model = selectedAircraft();
     const speed = (21 + round * .8 + stats.engine * 1.8) * model.speed;
 
+    if (tankMode && state === "playing") updateTankBattle(dt, timestamp);
     if (flying) {
       elapsed += dt;
       nextObstacle -= dt;
@@ -2368,9 +2668,13 @@
       }
     }
     const flicker = player.invulnerable > 0 && Math.floor(timestamp / 90) % 2 === 0;
-    plane.visible = cameraMode === "cockpit" ? false : !flicker;
-    cockpitInterior.visible = cameraMode === "cockpit";
-    if (cameraMode === "cockpit") {
+    plane.visible = !tankMode && (cameraMode === "cockpit" ? false : !flicker);
+    cockpitInterior.visible = !tankMode && cameraMode === "cockpit";
+    playerTank.visible = tankMode;
+    if (tankMode) {
+      camera.up.set(0, 1, 0);
+      camera.lookAt(playerTank.position.x, -2.1, playerTank.position.z - 36);
+    } else if (cameraMode === "cockpit") {
       const cockpitPosition = plane.localToWorld(new THREE.Vector3(0, .9, -.9));
       const viewTarget = plane.localToWorld(new THREE.Vector3(0, .45, -42));
       const up = plane.localToWorld(new THREE.Vector3(0, 1, 0)).sub(plane.position).normalize();
@@ -2388,17 +2692,34 @@
     requestAnimationFrame(tick);
   }
 
-  document.querySelector("#start").addEventListener("click", beginRound);
+  document.querySelector("#flight-mode").addEventListener("click", () => {
+    gameMode = "flight";
+    document.querySelector("#flight-mode").classList.add("active");
+    document.querySelector("#tank-mode").classList.remove("active");
+    modeDescriptionEl.textContent = "Fly, collect credits, and upgrade your aircraft between flights.";
+    document.querySelector("#start").innerHTML = "Let’s fly <span>↗</span>";
+  });
+  document.querySelector("#tank-mode").addEventListener("click", () => {
+    gameMode = "tank";
+    document.querySelector("#tank-mode").classList.add("active");
+    document.querySelector("#flight-mode").classList.remove("active");
+    modeDescriptionEl.textContent = "Drive the tank, aim with your mouse, and shoot down incoming aircraft for credits.";
+    document.querySelector("#start").innerHTML = "Defend the range <span>↗</span>";
+  });
+  document.querySelector("#start").addEventListener("click", () => {
+    if (gameMode === "tank") startTankMode();
+    else beginRound();
+  });
   pilotSignInBtn.addEventListener("click", signInPilot);
   pilotNameEl.addEventListener("keydown", event => {
     if (event.key === "Enter") signInPilot();
   });
   pilotSignOutBtn.addEventListener("click", signOutPilot);
   mysteryBoxBtn.addEventListener("click", openMysteryBox);
-  document.querySelector("#host-room").addEventListener("click", () => hostOnlineRoom(false));
-  document.querySelector("#join-room").addEventListener("click", () => joinOnlineRoom(false));
-  document.querySelector("#host-duel").addEventListener("click", () => hostOnlineRoom(true));
-  document.querySelector("#join-duel").addEventListener("click", () => joinOnlineRoom(true));
+  document.querySelector("#host-room").addEventListener("click", () => { gameMode = "flight"; hostOnlineRoom(false); });
+  document.querySelector("#join-room").addEventListener("click", () => { gameMode = "flight"; joinOnlineRoom(false); });
+  document.querySelector("#host-duel").addEventListener("click", () => { gameMode = "flight"; hostOnlineRoom(true); });
+  document.querySelector("#join-duel").addEventListener("click", () => { gameMode = "flight"; joinOnlineRoom(true); });
   onlineIndicator.addEventListener("click", () => leaveOnlineRoom());
   roomCodeEl.addEventListener("input", () => {
     roomCodeEl.value = roomCodeEl.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
@@ -2418,6 +2739,10 @@
   });
   document.querySelector("#reroll").addEventListener("click", createChoices);
   document.querySelector("#restart").addEventListener("click", () => {
+    if (tankMode) {
+      startTankMode();
+      return;
+    }
     if (duelMode) leaveOnlineRoom(false);
     duelResult = null;
     cameraMode = "chase";
@@ -2428,12 +2753,12 @@
   pauseBtn.addEventListener("click", () => { if (state === "playing") show("pause-screen"); });
   document.querySelector("#resume").addEventListener("click", () => show("playing"));
   function toggleCamera() {
-    if (state !== "playing") return;
+    if (state !== "playing" || tankMode) return;
     cameraMode = cameraMode === "chase" ? "cockpit" : "chase";
     updateHud();
   }
   function toggleFacing() {
-    if (state !== "playing" || !duelMode) return;
+    if (state !== "playing" || !duelMode || tankMode) return;
     facing *= -1;
     updateHud();
   }
@@ -2480,6 +2805,12 @@
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener("pointermove", event => {
+    if (tankMode) {
+      tankAimNdc.set((event.clientX / innerWidth) * 2 - 1, 1 - (event.clientY / innerHeight) * 2);
+      tankReticleEl.style.left = `${event.clientX}px`;
+      tankReticleEl.style.top = `${event.clientY}px`;
+      return;
+    }
     if (!pointerDown || state !== "playing") return;
     player.targetX = clamp((event.clientX / innerWidth - .5) * 20, -10, 10);
     player.targetY = clamp((.56 - event.clientY / innerHeight) * 16, -3.2, 5.8);
