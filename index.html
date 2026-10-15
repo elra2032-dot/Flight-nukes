@@ -2216,12 +2216,11 @@
     return aimPoint;
   }
 
-  function positionTankReticle(aimPoint) {
-    const screenPoint = aimPoint.clone().project(camera);
+  function positionTankReticle() {
     const gameRect = document.querySelector("#game").getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
-    tankReticleEl.style.left = `${canvasRect.left - gameRect.left + (screenPoint.x + 1) * canvasRect.width / 2}px`;
-    tankReticleEl.style.top = `${canvasRect.top - gameRect.top + (1 - screenPoint.y) * canvasRect.height / 2}px`;
+    tankReticleEl.style.left = `${canvasRect.left - gameRect.left + (tankAimNdc.x + 1) * canvasRect.width / 2}px`;
+    tankReticleEl.style.top = `${canvasRect.top - gameRect.top + (1 - tankAimNdc.y) * canvasRect.height / 2}px`;
   }
 
   function fireTankGun() {
@@ -2263,7 +2262,7 @@
     const aimPoint = getTankAimPoint();
     tankAimX = aimPoint.x;
     tankAimY = aimPoint.z;
-    positionTankReticle(aimPoint);
+    positionTankReticle();
     if (playerTankTurret) {
       playerTankTurret.lookAt(aimPoint);
       playerTankTurret.rotateY(Math.PI);
@@ -2821,6 +2820,7 @@
         ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
         1 - ((event.clientY - bounds.top) / bounds.height) * 2
       );
+      positionTankReticle();
       return;
     }
     if (!pointerDown || state !== "playing") return;
